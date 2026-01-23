@@ -1,7 +1,7 @@
 {
   "name": "rumble-court",
   "version": "1.0.0",
-  "description": "",
+  "description": "AI-driven courtroom simulator where LLM agents act as opposing lawyers in real-time trials with on-chain recording",
   "type": "module",
   "main": "index.js",
   "scripts": {

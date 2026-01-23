@@ -1,42 +1,34 @@
-# The Urim: AI-Powered Financial Health Coach dApp
+# RumbleCourt: AI-Driven Courtroom Simulator
 
 ## Overview
 
-The Urim is a decentralized application that helps crypto users achieve their 2026 financial resolutions through personalized, low-risk coaching. Using advanced AI agents and blockchain technology, it analyzes wallet data to provide responsible DeFi suggestions focused on savings and yield generation.
+RumbleCourt is an AI-driven courtroom simulator where LLM agents act as opposing lawyers, fiercely debating user-submitted evidence in real-time trials. A neutral judge LLM delivers binding verdicts, while all proceedings and outcomes are immutably recorded on-chain for transparency, adjournment tracking, and future reference—empowering users to preview case outcomes before real-world litigation. This boosts legal professionals' productivity by simulating trials to save time/resources and improve decision-making habits.
 
 ## Categories
-- **Primary:** Financial Health
-- **Secondary:** Best Use of Opik
+- **Primary:** Legal Technology
+- **Secondary:** AI Simulation
 
 ## Core Features
 
-### Wallet Integration
-- Connect via MetaMask or WalletConnect
-- Fetch balances and transaction history using Moralis/Alchemy APIs
-- Analyze spending patterns and risk levels
+### AI Agent Litigation
+- LLM-powered opposing lawyers for dynamic courtroom debates
+- Real-time evidence analysis and argumentation
+- Neutral judge agent for impartial verdict delivery
 
-### AI Agent Coaching
-- Natural language goal input (e.g., "Save $5,000 in stablecoins by June")
-- LangChain.js reasoning chains for:
-  - Goal parsing and extraction
-  - Wallet data analysis
-  - Personalized DeFi plan generation
-- Enforced responsible advice with structured prompts
+### Blockchain Transparency
+- On-chain recording of all trial proceedings and outcomes
+- Immutable evidence storage and adjournment tracking
+- Decentralized case history for future reference
 
-### Blockchain Integration
-- Smart contract: `SavingsVault.sol` for on-chain progress tracking
-- Functions: Create vaults, deposit/lock funds, set milestones, withdraw on achievement
-- Immutable proof of progress via blockchain events
+### Pre-Litigation Simulation
+- Preview potential case outcomes before real-world litigation
+- Risk assessment and strategy optimization
+- Productivity enhancement for legal professionals
 
-### Enhanced Outputs
-- Text-to-audio coaching using Web Speech API
-- Downloadable PDF reports with Chart.js visualizations
-- Projected savings charts and wallet breakdowns
-
-### Opik Integration
-- Comprehensive LLM tracing and evaluation
-- Eval suites for accuracy, reliability, and user impact
-- Shareable dashboards for agent performance metrics
+### Real-Time Trials
+- Live courtroom simulations with user-submitted evidence
+- Interactive debate sessions between AI lawyers
+- Binding verdicts delivered by impartial AI judge
 
 ## Tech Stack
 
@@ -44,35 +36,35 @@ The Urim is a decentralized application that helps crypto users achieve their 20
 - **LLM:** OpenAI GPT-4o or OpenRouter models
 - **Blockchain:** EVM (Polygon testnet), Solidity 0.8.19, Hardhat, ethers.js/wagmi
 - **Evaluator:** Opik SDK
-- **APIs:** Moralis/Alchemy (wallet data), CoinGecko/CoinMarketCap (market data)
+- **APIs:** Moralis/Alchemy (blockchain data), CoinGecko/CoinMarketCap (market data)
 - **Styling:** Tailwind CSS
 
 ## Project Structure
 
 ```
-the-urim/
+rumbleCourt/
 ├── app/
 │   ├── api/
 │   │   ├── chat/          # LLM interaction endpoints
-│   │   ├── wallet/        # Wallet data fetching
+│   │   ├── wallet/        # Blockchain integration
 │   │   └── opik/          # Evaluation and tracing
 │   ├── components/        # React components
 │   │   ├── ChatInterface.tsx
 │   │   ├── WalletConnect.tsx
-│   │   └── SavingsPlan.tsx
+│   │   └── CourtroomSimulation.tsx
 │   ├── lib/               # Configurations
 │   │   ├── wagmi.ts       # Wallet integration
 │   │   ├── opik.ts        # Evaluation setup
 │   │   └── llm.ts         # AI agent chains
 │   └── utils/             # API utilities
-│       ├── moralis.ts     # Wallet data APIs
+│       ├── moralis.ts     # Blockchain data APIs
 │       └── coingecko.ts   # Market data APIs
 ├── contracts/             # Smart contracts
-│   └── SavingsVault.sol
+│   └── CourtRecord.sol
 ├── scripts/               # Deployment scripts
 │   └── deploy.ts
 ├── test/                  # Test files
-│   └── SavingsVault.test.ts
+│   └── CourtRecord.test.ts
 ├── hardhat.config.ts      # Hardhat configuration
 ├── .env.local.example     # Environment variables template
 └── README.md
@@ -88,19 +80,18 @@ the-urim/
 
 ## User Flow
 
-1. User connects EVM wallet
-2. Inputs financial resolution via chat
-3. Agent analyzes wallet data and generates personalized plan
-4. User approves and interacts with on-chain savings vault
-5. Agent tracks progress and provides ongoing coaching
-6. Outputs include text response, audio playback, and PDF reports
+1. User submits case evidence and details
+2. AI lawyers engage in real-time debate
+3. Neutral judge delivers binding verdict
+4. All proceedings recorded immutably on-chain
+5. Users can review case history and outcomes
 
 ## Hackathon Alignment
 
 - Built during Jan 13 - Feb 2026 hackathon period
-- Demonstrates strong LLM agent capabilities with reasoning chains
+- Demonstrates advanced LLM agent capabilities with reasoning chains
 - Deep Opik integration for observability and evaluation
-- Focus on practical financial health tools
+- Focus on innovative legal technology solutions
 - Functional demo with real-world impact potential
 
 ## Prerequisites
@@ -110,15 +101,15 @@ the-urim/
 - MetaMask or WalletConnect-compatible wallet
 - API keys for:
   - OpenAI/OpenRouter (LLM services)
-  - Moralis/Alchemy (wallet data)
+  - Moralis/Alchemy (blockchain data)
   - CoinGecko/CoinMarketCap (market data)
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Daltonic/The-Urim-AI-Powered-Financial-Health-Coach-dApp.git
-   cd the-urim
+   git clone https://github.com/Dapp-Mentors/rumblecourt.git
+   cd rumbleCourt
    ```
 
 2. Install dependencies:
@@ -143,7 +134,7 @@ Create a `.env.local` file with the following variables:
 OPENAI_API_KEY=your_openai_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 
-# Wallet Data APIs
+# Blockchain Data APIs
 MORALIS_API_KEY=your_moralis_api_key
 ALCHEMY_API_KEY=your_alchemy_api_key
 
