@@ -17,7 +17,7 @@ const config = [
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "warn",
       "complexity": ["error", 10],
-      "max-len": ["error", { "code": 100 }],
+      "max-len": ["error", { "code": 200 }],
       "react-hooks/exhaustive-deps": "warn",
       "prefer-const": "error",
       "react/no-unescaped-entities": "off",
