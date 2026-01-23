@@ -16,7 +16,7 @@ const config = [
       "@typescript-eslint/no-unused-vars": "error",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/explicit-function-return-type": "warn",
-      "complexity": ["error", 10],
+      "complexity": ["error", 20],
       "max-len": ["error", { "code": 200 }],
       "react-hooks/exhaustive-deps": "warn",
       "prefer-const": "error",

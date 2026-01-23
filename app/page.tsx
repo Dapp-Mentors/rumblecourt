@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Scale, Zap, Shield, ChevronRight, Sparkles, Brain, Lock } from 'lucide-react';
+import { Scale, Zap, ChevronRight, Sparkles, Brain, Lock } from 'lucide-react';
 
 type Particle = {
   left: string;
@@ -103,7 +103,7 @@ export default function Home(): React.ReactNode {
       <div
         className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4 sm:p-8"
       >
-        <div className="max-w-7xl mx-auto w-full">
+        <div className="max-w-7xl mx-auto w-full mt-26">
           {/* Header Section */}
           <div className="text-center mb-16 space-y-6">
             {/* Logo/Title with Neon Effect */}
@@ -266,22 +266,6 @@ export default function Home(): React.ReactNode {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Footer Badge */}
-          <div className="mt-12 text-center">
-            <div
-              className="
-                inline-flex items-center gap-2 px-6 py-3
-                bg-slate-900/50 backdrop-blur-sm
-                border border-purple-500/30 rounded-full
-              "
-            >
-              <Shield className="w-5 h-5 text-purple-400" />
-              <p className="text-slate-300 text-sm font-medium">
-                Built for Encode Club Comet Resolution v2 Hackathon • Legal Technology Category
-              </p>
             </div>
           </div>
         </div>

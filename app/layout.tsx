@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import WagmiProviderWrapper from './components/WagmiProviderWrapper'
 
 export const metadata: Metadata = {
   title: 'Rumble Court',
@@ -13,7 +14,11 @@ export default function RootLayout({
 }): React.JSX.Element {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen flex flex-col">
+        <WagmiProviderWrapper>
+          {children}
+        </WagmiProviderWrapper>
+      </body>
     </html>
   )
 }
