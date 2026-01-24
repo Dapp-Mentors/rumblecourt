@@ -1,27 +1,27 @@
-import hre from "hardhat";
-import "@nomicfoundation/hardhat-ethers";
+// import hre from "hardhat";
+// import "@nomicfoundation/hardhat-ethers";
 
 async function main(): Promise<void> {
-  console.log("Deploying SavingsVault...");
+  console.log("Courtroom System - Interfaces Only");
+  console.log("===================================");
+  console.log("Current contracts available:");
+  console.log("- ICaseRecording (Interface)");
+  console.log("- IVerdictStorage (Interface)");
+  console.log("- IAdjournmentTracking (Interface)");
+  console.log("");
+  console.log("Note: These are interfaces that need concrete implementations.");
+  console.log("Deployment scripts will be updated when concrete contracts are ready.");
+  console.log("");
+  console.log("To compile interfaces: npx hardhat compile");
+  console.log("To deploy concrete contracts: Implement the interfaces first");
 
-  // Get the contract factory
-  const SavingsVaultFactory = await hre.ethers.getContractFactory("SavingsVault");
-
-  // Deploy with the initial message
-  const savingsVault = await SavingsVaultFactory.deploy("Hello, World!");
-
-  // Wait for the deployment transaction to be mined
-  await savingsVault.waitForDeployment();
-
-  // Get the deployed address
-  const address = await savingsVault.getAddress();
-
-  console.log(`SavingsVault deployed to: ${address}`);
-  console.log(`Initial message: ${await savingsVault.getMessage()}`);
-
-  // Optional: Manual verification on PolygonScan (for Amoy/Mumbai)
-  // Run this in terminal after deployment:
-  // npx hardhat verify --network polygonAmoy ${address} "Hello, World!"
+  // TODO: Update this script when concrete contracts are implemented
+  // Example future deployment:
+  // const CourtroomFactory = await hre.ethers.getContractFactory("Courtroom");
+  // const courtroom = await CourtroomFactory.deploy();
+  // await courtroom.waitForDeployment();
+  // const address = await courtroom.getAddress();
+  // console.log(`Courtroom deployed to: ${address}`);
 }
 
 main().catch((error) => {
