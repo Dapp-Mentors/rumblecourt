@@ -1,7 +1,6 @@
 import hre from 'hardhat'
 import '@nomicfoundation/hardhat-ethers'
 import chalk from 'chalk'
-import type { VerdictStorage, AdjournmentTracking } from '../typechain-types'
 
 // Courtroom Simulation Script
 // This script demonstrates how courtroom records will be documented on-chain
@@ -35,11 +34,8 @@ async function main(): Promise<void> {
   console.log(`- Court Clerk: ${courtClerk.address}`)
   console.log('')
 
-  // Connect to deployed contracts
-  const verdictStorageAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
-  const adjournmentTrackingAddress =
-    '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'
-
+  // Deploy contracts for this simulation
+  console.log(chalk.cyan('🏗️  Deploying courtroom system contracts...'))
   const VerdictStorageFactory = await hre.ethers.getContractFactory(
     'VerdictStorage'
   )
@@ -47,12 +43,14 @@ async function main(): Promise<void> {
     'AdjournmentTracking'
   )
 
-  const verdictStorage = VerdictStorageFactory.attach(
-    verdictStorageAddress
-  ) as unknown as VerdictStorage
-  const adjournmentTracking = AdjournmentTrackingFactory.attach(
-    adjournmentTrackingAddress
-  ) as unknown as AdjournmentTracking
+  const verdictStorage = await VerdictStorageFactory.deploy()
+  const adjournmentTracking = await AdjournmentTrackingFactory.deploy()
+
+  await verdictStorage.waitForDeployment()
+  await adjournmentTracking.waitForDeployment()
+
+  console.log(`✅ VerdictStorage deployed to: ${await verdictStorage.getAddress()}`)
+  console.log(`✅ AdjournmentTracking deployed to: ${await adjournmentTracking.getAddress()}`)
 
   // Setup authorized judges
   console.log(chalk.cyan('🔐  Setting up courtroom authorization...'))
