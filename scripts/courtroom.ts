@@ -167,7 +167,10 @@ async function main(): Promise<void> {
     )
 
   await appeal1Tx.wait()
-  const appeal1Id = 1 // First appeal
+
+  // Get the actual appeal ID by checking total appeals
+  const totalAppealsAfterFiling = await verdictStorage.getTotalAppeals()
+  const appeal1Id = totalAppealsAfterFiling
 
   console.log(`✅ Appeal filed - ID: ${appeal1Id}`)
   console.log('')
