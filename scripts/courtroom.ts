@@ -42,15 +42,21 @@ async function main(): Promise<void> {
   const AdjournmentTrackingFactory = await hre.ethers.getContractFactory(
     'AdjournmentTracking'
   )
+  const CourtroomParticipantsFactory = await hre.ethers.getContractFactory(
+    'CourtroomParticipants'
+  )
 
   const verdictStorage = await VerdictStorageFactory.deploy()
   const adjournmentTracking = await AdjournmentTrackingFactory.deploy()
+  const courtroomParticipants = await CourtroomParticipantsFactory.deploy()
 
   await verdictStorage.waitForDeployment()
   await adjournmentTracking.waitForDeployment()
+  await courtroomParticipants.waitForDeployment()
 
   console.log(`✅ VerdictStorage deployed to: ${await verdictStorage.getAddress()}`)
   console.log(`✅ AdjournmentTracking deployed to: ${await adjournmentTracking.getAddress()}`)
+  console.log(`✅ CourtroomParticipants deployed to: ${await courtroomParticipants.getAddress()}`)
 
   // Setup authorized judges
   console.log(chalk.cyan('🔐  Setting up courtroom authorization...'))
@@ -59,6 +65,139 @@ async function main(): Promise<void> {
   await adjournmentTracking.connect(deployer).addAuthorizedJudge(judge1.address)
   await adjournmentTracking.connect(deployer).addAuthorizedJudge(judge2.address)
   console.log('✅ Authorized judges configured')
+  console.log('')
+
+  // =============================================
+  // COURTROOM PARTICIPANTS MANAGEMENT
+  // =============================================
+  console.log(
+    chalk.bgCyan.white.bold('👥  COURTROOM PARTICIPANTS MANAGEMENT')
+  )
+  console.log(chalk.cyan('======================================'))
+
+  // Create participant profiles
+  console.log(chalk.yellow('📝  Creating participant profiles...'))
+  
+  // Create judge profile
+  const judgeProfileTx = await courtroomParticipants
+    .connect(deployer)
+    .createParticipantProfile(
+      judge1.address,
+      0, // JUDGE
+      'openrouter',
+      'gpt-4',
+      'GPT-4',
+      9, // expertiseLevel
+      8, // eloquenceScore
+      9, // analyticalScore
+      7, // emotionalIntelligence
+      '{"traits": "impartial, fair, experienced"}'
+    )
+  await judgeProfileTx.wait()
+  console.log('✅ Judge profile created')
+
+  // Create prosecutor profile
+  const prosecutorProfileTx = await courtroomParticipants
+    .connect(deployer)
+    .createParticipantProfile(
+      prosecutor.address,
+      1, // PROSECUTOR
+      'anthropic',
+      'claude-3-sonnet',
+      'Claude 3 Sonnet',
+      8, // expertiseLevel
+      9, // eloquenceScore
+      8, // analyticalScore
+      6, // emotionalIntelligence
+      '{"traits": "persuasive, determined, strategic"}'
+    )
+  await prosecutorProfileTx.wait()
+  console.log('✅ Prosecutor profile created')
+
+  // Create defense attorney profile
+  const defenseProfileTx = await courtroomParticipants
+    .connect(deployer)
+    .createParticipantProfile(
+      defendant.address,
+      2, // DEFENSE_ATTORNEY
+      'google',
+      'gemini-pro',
+      'Gemini Pro',
+      8, // expertiseLevel
+      8, // eloquenceScore
+      9, // analyticalScore
+      8, // emotionalIntelligence
+      '{"traits": "protective, analytical, empathetic"}'
+    )
+  await defenseProfileTx.wait()
+  console.log('✅ Defense attorney profile created')
+
+  // Create court clerk profile
+  const clerkProfileTx = await courtroomParticipants
+    .connect(deployer)
+    .createParticipantProfile(
+      courtClerk.address,
+      3, // CLERK
+      'openrouter',
+      'llama-3',
+      'Llama 3',
+      7, // expertiseLevel
+      7, // eloquenceScore
+      7, // analyticalScore
+      8, // emotionalIntelligence
+      '{"traits": "organized, efficient, detail-oriented"}'
+    )
+  await clerkProfileTx.wait()
+  console.log('✅ Court clerk profile created')
+  console.log('')
+
+  // Create a court
+  console.log(chalk.cyan('🏛️  Creating court...'))
+  const courtTx = await courtroomParticipants
+    .connect(judge1)
+    .createCourt(
+      'Supreme Court of Blockchain Justice',
+      'Highest court for blockchain-based legal proceedings'
+    )
+  await courtTx.wait()
+  
+  const courtId = 1
+  console.log(`✅ Court created - ID: ${courtId}`)
+  console.log('')
+
+  // Assign participants to court
+  console.log(chalk.cyan('👥  Assigning participants to court...'))
+  await courtroomParticipants
+    .connect(judge1)
+    .assignParticipantToCourt(courtId, 1, 0) // Judge
+  await courtroomParticipants
+    .connect(judge1)
+    .assignParticipantToCourt(courtId, 2, 1) // Prosecutor
+  await courtroomParticipants
+    .connect(judge1)
+    .assignParticipantToCourt(courtId, 3, 2) // Defense Attorney
+  await courtroomParticipants
+    .connect(judge1)
+    .assignParticipantToCourt(courtId, 4, 3) // Clerk
+  console.log('✅ Participants assigned to court')
+  console.log('')
+
+  // Check court completion
+  const isComplete = await courtroomParticipants.isCourtComplete(courtId)
+  console.log(chalk.green(`📋  Court completion status: ${isComplete ? '✅ COMPLETE' : '❌ INCOMPLETE'}`))
+  console.log('')
+
+  // Get court participants by role
+  const judges = await courtroomParticipants.getCourtParticipantsByRole(courtId, 0)
+  const prosecutors = await courtroomParticipants.getCourtParticipantsByRole(courtId, 1)
+  const defenseAttorneys = await courtroomParticipants.getCourtParticipantsByRole(courtId, 2)
+  const clerks = await courtroomParticipants.getCourtParticipantsByRole(courtId, 3)
+
+  console.log(chalk.yellow('👥  Court Participants by Role:'))
+  console.log(`- Judges: ${judges.length} (Profile IDs: ${judges.join(', ')})`)
+  console.log(`- Prosecutors: ${prosecutors.length} (Profile IDs: ${prosecutors.join(', ')})`)
+  console.log(`- Defense Attorneys: ${defenseAttorneys.length} (Profile IDs: ${defenseAttorneys.join(', ')})`)
+  console.log(`- Clerks: ${clerks.length} (Profile IDs: ${clerks.join(', ')})`)
   console.log('')
 
   // =============================================

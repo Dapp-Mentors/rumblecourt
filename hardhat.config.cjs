@@ -6,7 +6,16 @@ require("@typechain/hardhat");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 const config = {
-  solidity: '0.8.19',
+  solidity: {
+    version: '0.8.19',
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      viaIR: true,
+    },
+  },
   networks: {
     localhost: {
       type: 'http',
