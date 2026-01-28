@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Scale, Github, Twitter, Linkedin, Heart, Shield, BookOpen, Gavel } from 'lucide-react';
+import Link from 'next/link';
 
 const Footer = () => {
     return (
@@ -106,16 +107,16 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/courtroom" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Courtroom
-                                </button>
+                                </Link>
                             </li>
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/history" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Case History
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
@@ -140,10 +141,10 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/docs" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Documentation
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
@@ -174,10 +175,10 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/about" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     About Us
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">

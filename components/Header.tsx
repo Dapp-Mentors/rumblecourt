@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
 import { useWallet } from '../app/context/WalletContext';
+import Link from 'next/link';
 
 const Header = () => {
     const { 
@@ -103,15 +104,16 @@ const Header = () => {
                     {navLinks.map((link) => {
                         const Icon = link.icon;
                         return (
-                            <button
+                            <Link
                                 key={link.href}
+                                href={link.href}
                                 className="group relative px-4 py-2 text-sm text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2"
                             >
                                 <Icon className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
                                 <span>{link.label}</span>
                                 {/* Animated underline */}
                                 <span className="absolute bottom-0 left-4 w-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-[calc(100%-32px)] transition-all duration-300" />
-                            </button>
+                            </Link>
                         );
                     })}
                 </nav>
@@ -191,15 +193,16 @@ const Header = () => {
                         {navLinks.map((link) => {
                             const Icon = link.icon;
                             return (
-                                <button
+                                <Link
                                     key={link.href}
+                                    href={link.href}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="group relative px-4 py-3 text-sm text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-3 hover:bg-slate-900/50 rounded-lg"
                                 >
                                     <Icon className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     {link.label}
-                                </button>
+                                </Link>
                             );
                         })}
 
