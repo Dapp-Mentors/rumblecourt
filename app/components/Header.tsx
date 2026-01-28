@@ -2,20 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
-import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
+import { useWallet } from '../context/WalletContext';
 
 const Header = () => {
-    const { address, isConnected } = useAccount();
-    const { connect, connectors } = useConnect();
-    const { disconnect } = useDisconnect();
-    const chainId = useChainId();
+    const { 
+        isConnected, 
+        chainId, 
+        displayAddress, 
+        connectWallet,
+        disconnectWallet
+    } = useWallet();
 
     const handleConnect = () => {
-        connect({ connector: connectors[0] }); // Use first available connector (MetaMask)
+        connectWallet();
     };
 
     const handleDisconnect = () => {
-        disconnect();
+        disconnectWallet();
     };
 
     const [scrolled, setScrolled] = useState(false);
@@ -33,8 +36,6 @@ const Header = () => {
             window.removeEventListener('scroll', handleScroll);
         };
     }, []);
-
-    const displayAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
     const getChainName = (chainId: number) => {
         switch (chainId) {

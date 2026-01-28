@@ -69,20 +69,15 @@ export interface Court {
   isActive: boolean;
 }
 
-// Type definition for window.ethereum
-interface EthereumProvider {
-  request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on?: (event: string, callback: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
-}
-
 declare global {
   interface Window {
-    ethereum?: EthereumProvider;
+    ethereum?: {
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+    };
   }
 }
 
-let ethereum: EthereumProvider | undefined;
+let ethereum: Window['ethereum'];
 let tx: ethers.TransactionResponse | undefined;
 
 if (typeof window !== 'undefined') ethereum = window.ethereum;
