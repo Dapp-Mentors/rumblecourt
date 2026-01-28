@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import CourtroomSimulation from '../components/CourtroomSimulation';
-import ProtectedRoute from '../components/ProtectedRoute';
+import CourtroomSimulation from '../../components/CourtroomSimulation';
+import ProtectedRoute from '../../components/ProtectedRoute';
 
 // Client-only particle component to avoid hydration mismatch
 type Particle = {

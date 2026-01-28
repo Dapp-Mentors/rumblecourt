@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
-import { useWallet } from '../context/WalletContext';
+import { useWallet } from '../app/context/WalletContext';
 
 const Header = () => {
     const { 
