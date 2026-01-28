@@ -25,27 +25,42 @@ async function main(): Promise<void> {
   const adjournmentTrackingAddress = await adjournmentTracking.getAddress();
   console.log(`AdjournmentTracking deployed to: ${adjournmentTrackingAddress}`);
 
+  // Deploy CourtroomParticipants
+  console.log("Deploying CourtroomParticipants...");
+  const CourtroomParticipantsFactory = await hre.ethers.getContractFactory("CourtroomParticipants");
+  const courtroomParticipants = await CourtroomParticipantsFactory.deploy();
+  await courtroomParticipants.waitForDeployment();
+  const courtroomParticipantsAddress = await courtroomParticipants.getAddress();
+  console.log(`CourtroomParticipants deployed to: ${courtroomParticipantsAddress}`);
+
   // Setup authorized judges (example)
   console.log("Setting up authorized judges...");
   await verdictStorage.addAuthorizedJudge(deployer.address);
   await adjournmentTracking.addAuthorizedJudge(deployer.address);
   console.log(`Added deployer as authorized judge: ${deployer.address}`);
 
+  // Test basic functionality
+  const contractOwner = await courtroomParticipants.getContractOwner();
+  console.log(`Contract owner: ${contractOwner}`);
+  
   console.log("");
   console.log("Deployment Summary:");
   console.log("==================");
   console.log(`VerdictStorage: ${verdictStorageAddress}`);
   console.log(`AdjournmentTracking: ${adjournmentTrackingAddress}`);
+  console.log(`CourtroomParticipants: ${courtroomParticipantsAddress}`);
   console.log("");
   console.log("Available contracts:");
   console.log("- VerdictStorage (Concrete implementation)");
   console.log("- AdjournmentTracking (Concrete implementation)");
+  console.log("- CourtroomParticipants (Participant management)");
   console.log("- ICaseRecording (Interface - not yet implemented)");
   console.log("");
   console.log("Next steps:");
   console.log("1. Run tests: npx hardhat test");
   console.log("2. Verify contracts on block explorer if needed");
   console.log("3. Update frontend to integrate with deployed contracts");
+  console.log("4. Test courtroom simulation with all contracts deployed");
 }
 
 main().catch((error) => {
