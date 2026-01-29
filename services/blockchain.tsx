@@ -3,6 +3,9 @@ import verdictStorageAbi from '../artifacts/contracts/VerdictStorage.sol/Verdict
 import adjournmentTrackingAbi from '../artifacts/contracts/AdjournmentTracking.sol/AdjournmentTracking.json';
 import courtroomParticipantsAbi from '../artifacts/contracts/CourtroomParticipants.sol/CourtroomParticipants.json';
 
+// Import deployment artifacts to get contract addresses dynamically
+import deploymentArtifacts from '../artifacts/contracts.json';
+
 // Type definitions for the contract data structures
 export type VerdictType = 'GUILTY' | 'NOT_GUILTY' | 'ACQUITTED' | 'CONVICTED' | 'DISMISSED';
 export type AppealStatus = 'FILED' | 'SCHEDULED' | 'IN_PROGRESS' | 'RESOLVED' | 'DISMISSED';
@@ -82,11 +85,11 @@ let tx: ethers.TransactionResponse | undefined;
 
 if (typeof window !== 'undefined') ethereum = window.ethereum;
 
-// Contract addresses - these should be updated with actual deployed contract addresses
+// Contract addresses - dynamically loaded from deployment artifacts
 const contractAddresses = {
-  verdictStorage: process.env.NEXT_PUBLIC_VERDICT_STORAGE_ADDRESS || '',
-  adjournmentTracking: process.env.NEXT_PUBLIC_ADJOURNMENT_TRACKING_ADDRESS || '',
-  courtroomParticipants: process.env.NEXT_PUBLIC_COURTROOM_PARTICIPANTS_ADDRESS || ''
+  verdictStorage: deploymentArtifacts.contract.contracts.VerdictStorage,
+  adjournmentTracking: deploymentArtifacts.contract.contracts.AdjournmentTracking,
+  courtroomParticipants: deploymentArtifacts.contract.contracts.CourtroomParticipants
 };
 
 const getEthereumContracts = async (contractName: 'verdictStorage' | 'adjournmentTracking' | 'courtroomParticipants'): Promise<ethers.Contract> => {

@@ -40,5 +40,7 @@ Thumbs.db
 
 # Hardhat
 artifacts/
+!artifacts/contracts/
+!artifacts/contracts/**/*.json
 cache/
 typechain-types/

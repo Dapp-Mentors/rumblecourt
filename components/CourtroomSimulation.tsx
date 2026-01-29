@@ -57,7 +57,7 @@ const CourtroomSimulation: React.FC = () => {
         </div>
 
         {/* Case Status Bar */}
-        {currentCase && (
+        {/* {currentCase && (
           <div className="mb-4 bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -79,7 +79,7 @@ const CourtroomSimulation: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Terminal Interface */}
         <div className="flex-1 flex flex-col bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
@@ -172,7 +172,7 @@ const CourtroomSimulation: React.FC = () => {
         </div>
 
         {/* Quick Commands */}
-        <div className="mt-4 bg-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+        {/* <div className="mt-4 bg-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
           <h3 className="text-sm font-semibold text-slate-400 mb-3">Quick Commands</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
@@ -197,7 +197,7 @@ const CourtroomSimulation: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Right Sidebar - Case History */}

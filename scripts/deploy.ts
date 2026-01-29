@@ -1,69 +1,128 @@
-import hre from "hardhat";
-import "@nomicfoundation/hardhat-ethers";
+import hre from 'hardhat'
+import '@nomicfoundation/hardhat-ethers'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+
+/* -------------------------------------------------------------------------- */
+/*                               ESM Utilities                                */
+/* -------------------------------------------------------------------------- */
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+/* -------------------------------------------------------------------------- */
+/*                                   Types                                    */
+/* -------------------------------------------------------------------------- */
+
+type ContractAddresses = {
+  VerdictStorage: string
+  AdjournmentTracking: string
+  CourtroomParticipants: string
+}
+
+type NetworkDeployment = {
+  network: string
+  updatedAt: string
+  deployer: string
+  contracts: ContractAddresses
+}
+
+type DeploymentsFile = Record<string, NetworkDeployment>
+
+/* -------------------------------------------------------------------------- */
+/*                              Config / Paths                                */
+/* -------------------------------------------------------------------------- */
+
+const DEPLOYMENTS_PATH = path.join(
+  __dirname,
+  '..',
+  'artifacts',
+  'contracts.json'
+)
+
+/* -------------------------------------------------------------------------- */
+/*                                   Script                                   */
+/* -------------------------------------------------------------------------- */
 
 async function main(): Promise<void> {
-  console.log("Courtroom System - Deploying Contracts");
-  console.log("======================================");
+  console.log('Courtroom System - Deploying Contracts')
+  console.log('======================================')
 
-  // Get the deployer account
-  const [deployer] = await hre.ethers.getSigners();
-  console.log(`Deploying contracts with account: ${deployer.address}`);
+  const network = hre.network.name
 
-  // Deploy VerdictStorage
-  console.log("Deploying VerdictStorage...");
-  const VerdictStorageFactory = await hre.ethers.getContractFactory("VerdictStorage");
-  const verdictStorage = await VerdictStorageFactory.deploy();
-  await verdictStorage.waitForDeployment();
-  const verdictStorageAddress = await verdictStorage.getAddress();
-  console.log(`VerdictStorage deployed to: ${verdictStorageAddress}`);
+  const [deployer] = await hre.ethers.getSigners()
+  console.log(`Network: ${network}`)
+  console.log(`Deploying with account: ${deployer.address}`)
 
-  // Deploy AdjournmentTracking
-  console.log("Deploying AdjournmentTracking...");
-  const AdjournmentTrackingFactory = await hre.ethers.getContractFactory("AdjournmentTracking");
-  const adjournmentTracking = await AdjournmentTrackingFactory.deploy();
-  await adjournmentTracking.waitForDeployment();
-  const adjournmentTrackingAddress = await adjournmentTracking.getAddress();
-  console.log(`AdjournmentTracking deployed to: ${adjournmentTrackingAddress}`);
+  /* ------------------------------- Deployments ------------------------------ */
 
-  // Deploy CourtroomParticipants
-  console.log("Deploying CourtroomParticipants...");
-  const CourtroomParticipantsFactory = await hre.ethers.getContractFactory("CourtroomParticipants");
-  const courtroomParticipants = await CourtroomParticipantsFactory.deploy();
-  await courtroomParticipants.waitForDeployment();
-  const courtroomParticipantsAddress = await courtroomParticipants.getAddress();
-  console.log(`CourtroomParticipants deployed to: ${courtroomParticipantsAddress}`);
+  const VerdictStorage = await hre.ethers.getContractFactory('VerdictStorage')
+  const verdictStorage = await VerdictStorage.deploy()
+  await verdictStorage.waitForDeployment()
 
-  // Setup authorized judges (example)
-  console.log("Setting up authorized judges...");
-  await verdictStorage.addAuthorizedJudge(deployer.address);
-  await adjournmentTracking.addAuthorizedJudge(deployer.address);
-  console.log(`Added deployer as authorized judge: ${deployer.address}`);
+  const AdjournmentTracking = await hre.ethers.getContractFactory(
+    'AdjournmentTracking'
+  )
+  const adjournmentTracking = await AdjournmentTracking.deploy()
+  await adjournmentTracking.waitForDeployment()
 
-  // Test basic functionality
-  const contractOwner = await courtroomParticipants.getContractOwner();
-  console.log(`Contract owner: ${contractOwner}`);
-  
-  console.log("");
-  console.log("Deployment Summary:");
-  console.log("==================");
-  console.log(`VerdictStorage: ${verdictStorageAddress}`);
-  console.log(`AdjournmentTracking: ${adjournmentTrackingAddress}`);
-  console.log(`CourtroomParticipants: ${courtroomParticipantsAddress}`);
-  console.log("");
-  console.log("Available contracts:");
-  console.log("- VerdictStorage (Concrete implementation)");
-  console.log("- AdjournmentTracking (Concrete implementation)");
-  console.log("- CourtroomParticipants (Participant management)");
-  console.log("- ICaseRecording (Interface - not yet implemented)");
-  console.log("");
-  console.log("Next steps:");
-  console.log("1. Run tests: npx hardhat test");
-  console.log("2. Verify contracts on block explorer if needed");
-  console.log("3. Update frontend to integrate with deployed contracts");
-  console.log("4. Test courtroom simulation with all contracts deployed");
+  const CourtroomParticipants = await hre.ethers.getContractFactory(
+    'CourtroomParticipants'
+  )
+  const courtroomParticipants = await CourtroomParticipants.deploy()
+  await courtroomParticipants.waitForDeployment()
+
+  /* ----------------------------- Post-Deploy Setup ---------------------------- */
+
+  await verdictStorage.addAuthorizedJudge(deployer.address)
+  await adjournmentTracking.addAuthorizedJudge(deployer.address)
+
+  /* --------------------------- Load Existing JSON ---------------------------- */
+
+  const deploymentsDir = path.dirname(DEPLOYMENTS_PATH)
+  if (!fs.existsSync(deploymentsDir)) {
+    fs.mkdirSync(deploymentsDir, { recursive: true })
+  }
+
+  let deployments: DeploymentsFile = {}
+
+  if (fs.existsSync(DEPLOYMENTS_PATH)) {
+    deployments = JSON.parse(
+      fs.readFileSync(DEPLOYMENTS_PATH, 'utf-8')
+    ) as DeploymentsFile
+  }
+
+  /* ----------------------------- Save Deployment ----------------------------- */
+
+  deployments['contract'] = {
+    network,
+    updatedAt: new Date().toISOString(),
+    deployer: deployer.address,
+    contracts: {
+      VerdictStorage: await verdictStorage.getAddress(),
+      AdjournmentTracking: await adjournmentTracking.getAddress(),
+      CourtroomParticipants: await courtroomParticipants.getAddress(),
+    },
+  }
+
+  fs.writeFileSync(DEPLOYMENTS_PATH, JSON.stringify(deployments, null, 2))
+
+  /* --------------------------------- Summary -------------------------------- */
+
+  console.log('\nDeployment Summary')
+  console.log('==================')
+  console.log(deployments['contract'].contracts)
+  console.log(`\nSaved to ${DEPLOYMENTS_PATH}`)
+
+  console.log('\nNext steps:')
+  console.log('1. Update frontend to read deployments/contracts.json')
+  console.log('2. Run tests: npx hardhat test')
+  console.log('3. Verify contracts if deploying to public networks')
 }
 
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+  console.error(error)
+  process.exitCode = 1
+})
