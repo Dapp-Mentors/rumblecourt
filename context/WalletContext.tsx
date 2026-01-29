@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
+import { config } from '../lib/wagmi';
 
 interface WalletContextType {
   // Wallet state
@@ -49,18 +50,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   // Get chain name
   const getChainName = (chainId: number): string => {
-    switch (chainId) {
-      case 1: return 'Ethereum';
-      case 137: return 'Polygon';
-      case 80002: return 'Polygon Amoy';
-      default: return 'Unknown Network';
-    }
+    const chain = config.chains.find(c => c.id === chainId);
+    return chain?.name || 'Unknown Network';
   };
 
   const chainName = getChainName(chainId);
 
   // Check if current chain is supported
-  const isSupportedChain = [1, 137, 80002].includes(chainId);
+  const isSupportedChain = config.chains.some(c => c.id === chainId);
 
   // Handle connection errors
   useEffect(() => {

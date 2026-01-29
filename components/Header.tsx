@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
+import { config } from '../lib/wagmi';
 import Link from 'next/link';
 
 const Header = () => {
-    const { 
-        isConnected, 
-        chainId, 
-        displayAddress, 
+    const {
+        isConnected,
+        chainId,
+        displayAddress,
         connectWallet,
         disconnectWallet
     } = useWallet();
@@ -38,13 +39,9 @@ const Header = () => {
         };
     }, []);
 
-    const getChainName = (chainId: number) => {
-        switch (chainId) {
-            case 1: return 'Ethereum';
-            case 137: return 'Polygon';
-            case 80002: return 'Polygon Amoy';
-            default: return 'Unknown';
-        }
+    const getChainName = (chainId: number): string => {
+        const chain = config.chains.find(c => c.id === chainId);
+        return chain?.name || 'Unknown';
     };
 
     const navLinks = [
@@ -72,7 +69,7 @@ const Header = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
 
                 {/* Logo */}
-                <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
+                <Link href="/" className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
                     <div className="relative">
                         <div
                             className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-500 via-purple-500 to-pink-500
@@ -97,7 +94,7 @@ const Header = () => {
                             <Sparkles className="absolute -top-1 -right-5 w-4 h-4 text-cyan-400 animate-pulse" />
                         )}
                     </div>
-                </div>
+                </Link>
 
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center gap-1">

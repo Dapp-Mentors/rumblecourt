@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { useWallet } from '../context/WalletContext';
 import { Shield, AlertTriangle, Sparkles, Wallet, Network } from 'lucide-react';
+import { config } from '../lib/wagmi';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -25,11 +26,39 @@ const isErrorWithCode = (error: unknown): error is ErrorWithCode => {
   return typeof error === 'object' && error !== null && 'code' in error;
 };
 
+// Helper function to get supported chains from wagmi config
+const getSupportedChains = (): typeof config.chains => {
+  return config.chains;
+};
+
+// Helper function to format chain ID for wallet requests
+const formatChainId = (chainId: number): string => {
+  return '0x' + chainId.toString(16);
+};
+
+// Helper function to get chain metadata for wallet_addEthereumChain
+const getChainMetadata = (chainId: number) => {
+  const chain = config.chains.find(c => c.id === chainId);
+  if (!chain) return null;
+
+  return {
+    chainId: formatChainId(chain.id),
+    chainName: chain.name,
+    nativeCurrency: {
+      name: chain.nativeCurrency?.name || 'ETH',
+      symbol: chain.nativeCurrency?.symbol || 'ETH',
+      decimals: chain.nativeCurrency?.decimals || 18
+    },
+    rpcUrls: chain.rpcUrls.default?.http || [],
+    blockExplorerUrls: chain.blockExplorers?.default?.url ? [chain.blockExplorers.default.url] : []
+  };
+};
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   required = true
 }) => {
-  const { isConnected, isConnecting, connectionError, isSupportedChain, chainName } = useWallet();
+  const { isConnected, isConnecting, connectionError, isSupportedChain, chainName, connectWallet } = useWallet();
 
   // If connection is not required, render children directly
   if (!required) {
@@ -95,30 +124,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Show unsupported chain warning
   if (isConnected && !isSupportedChain) {
-    const handleSwitchToPolygon = (): void => {
+    const supportedChains = getSupportedChains();
+    
+    const handleSwitchToChain = (chainId: number): void => {
       if (!window.ethereum) return;
+
+      const chainMetadata = getChainMetadata(chainId);
+      if (!chainMetadata) return;
 
       window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x89' }], // Polygon chainId in hex
+        params: [{ chainId: chainMetadata.chainId }],
       }).catch((error: unknown) => {
         if (isErrorWithCode(error) && error.code === 4902) {
           // Chain not added, try to add it
           window.ethereum?.request({
             method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0x89',
-              chainName: 'Polygon Mainnet',
-              nativeCurrency: {
-                name: 'MATIC',
-                symbol: 'MATIC',
-                decimals: 18
-              },
-              rpcUrls: ['https://polygon-rpc.com/'],
-              blockExplorerUrls: ['https://polygonscan.com/']
-            }]
+            params: [chainMetadata]
           }).catch((addError: unknown) => {
-            console.error('Failed to add Polygon network:', addError);
+            console.error(`Failed to add ${chainMetadata.chainName} network:`, addError);
           });
         } else {
           console.error('Failed to switch network:', error);
@@ -139,17 +163,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <h2 className="text-2xl font-bold text-white mb-2">Unsupported Network</h2>
           <p className="text-slate-400 mb-4">You're connected to {chainName}</p>
           <p className="text-slate-500 text-sm mb-6">
-            Please switch to Ethereum Mainnet, Polygon, or Polygon Amoy to access
-            the courtroom.
+            Please switch to one of the supported networks to access the courtroom.
           </p>
 
           <div className="space-y-3">
-            <button
-              onClick={handleSwitchToPolygon}
-              className="w-full bg-linear-to-r from-yellow-500 to-yellow-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300"
-            >
-              Switch to Polygon
-            </button>
+            {supportedChains.map((chain) => (
+              <button
+                key={chain.id}
+                onClick={() => handleSwitchToChain(chain.id)}
+                className="w-full bg-linear-to-r from-yellow-500 to-yellow-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300"
+              >
+                Switch to {chain.name}
+              </button>
+            ))}
             <button
               onClick={() => window.location.reload()}
               className="w-full border border-slate-600 text-slate-300 py-3 px-4 rounded-lg hover:border-slate-500 hover:text-white transition-all duration-300"
@@ -166,10 +192,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!isConnected) {
     const handleConnectWallet = (): void => {
       // Trigger wallet connection through context
-      const walletButton = document.querySelector('[data-wallet-connect]') as HTMLElement;
-      if (walletButton) {
-        walletButton.click();
-      }
+      connectWallet();
     };
 
     return (

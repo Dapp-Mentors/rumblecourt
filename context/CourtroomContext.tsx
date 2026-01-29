@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWallet } from './WalletContext';
 import { courtroomMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
+import { config } from '../lib/wagmi';
 import {
   Case,
   ChatMessage,
@@ -582,13 +583,16 @@ export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }
     - All verdicts, appeals, and adjournments are stored on-chain
     - Transactions are signed by the connected wallet
     - Provide transaction hashes and blockchain explorer links
-    - Support Ethereum, Polygon, and Polygon Amoy networks
+    - Support Ethereum, Polygon, Polygon Amoy, and Hardhat networks
 
     When displaying transaction hashes or addresses, ALWAYS provide clickable blockchain explorer links:
     - Transaction format: https://explorer.openrouter.ai/tx/[HASH]?network=[NETWORK]
     - Address format: https://explorer.openrouter.ai/address/[ADDRESS]?network=[NETWORK]
 
-    Current network: ${isConnected ? (chainId === 1 ? 'Ethereum' : chainId === 137 ? 'Polygon' : chainId === 80002 ? 'Polygon Amoy' : 'Unknown') : 'Not connected'}
+    Current network: ${isConnected ? (() => {
+      const chain = config.chains.find(c => c.id === chainId);
+      return chain?.name || 'Unknown';
+    })() : 'Not connected'}
     `,
   });
 
@@ -629,7 +633,7 @@ export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }
             'X-Title': 'RumbleCourt AI',
           },
           body: JSON.stringify({
-            model: "anthropic/claude-sonnet-4",
+            model: "nvidia/nemotron-3-nano-30b-a3b:free",
             messages: conversationMessages,
             tools,
             tool_choice: 'auto',
