@@ -629,7 +629,7 @@ export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }
             'X-Title': 'RumbleCourt AI',
           },
           body: JSON.stringify({
-            model: 'anthropic/claude-sonnet-4',
+            model: "anthropic/claude-sonnet-4",
             messages: conversationMessages,
             tools,
             tool_choice: 'auto',
