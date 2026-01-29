@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { useWallet } from '../app/context/WalletContext';
+import { useWallet } from '../context/WalletContext';
 import { Shield, AlertTriangle, Sparkles, Wallet, Network } from 'lucide-react';
 
 interface ProtectedRouteProps {

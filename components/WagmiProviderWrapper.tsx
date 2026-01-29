@@ -2,8 +2,8 @@
 
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { config } from '../app/lib/wagmi'
-import { WalletProvider } from '../app/context/WalletContext';
+import { config } from '../lib/wagmi'
+import { WalletProvider } from '../context/WalletContext';
 import Header from './Header'
 import Footer from './Footer';
 

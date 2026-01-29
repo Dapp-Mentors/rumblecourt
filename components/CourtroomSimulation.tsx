@@ -1,179 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Scale, Gavel, Send, Terminal, Loader2 } from 'lucide-react';
-import { Case, ChatMessage } from './types';
+import { useCourtroom } from '../context/CourtroomContext';
 import CaseHistorySidebar from './CaseHistorySidebar';
 import TerminalMessage from './TerminalMessage';
 
 const CourtroomSimulation: React.FC = () => {
-  // Mock cases data (replace with actual data from MCP)
-  const [cases,] = useState<Case[]>([
-    {
-      id: 'case-001',
-      title: 'Contract Breach Dispute',
-      description: 'Dispute over alleged breach of service contract terms and payment obligations.',
-      plaintiff: 'TechCorp Solutions',
-      defendant: 'Global Services Inc.',
-      evidence: [
-        {
-          id: 'ev-001',
-          type: 'document',
-          content: 'Contract signed on 2024-01-15 with 6-month term',
-          description: 'Original service agreement',
-          submittedBy: 'plaintiff'
-        }
-      ],
-      status: 'completed',
-      createdAt: new Date('2024-01-15'),
-      verdict: 'Plaintiff awarded $50,000 in damages'
-    },
-    {
-      id: 'case-002',
-      title: 'IP Infringement Claim',
-      description: 'Alleged copyright violation in software development',
-      plaintiff: 'InnovateSoft Inc.',
-      defendant: 'CodeMasters LLC',
-      evidence: [],
-      status: 'active',
-      createdAt: new Date('2024-01-20')
-    },
-    {
-      id: 'case-003',
-      title: 'Employment Contract Dispute',
-      description: 'Breach of non-compete agreement',
-      plaintiff: 'Sarah Johnson',
-      defendant: 'TechStart Corp',
-      evidence: [],
-      status: 'draft',
-      createdAt: new Date('2024-01-18')
-    }
-  ]);
+  const {
+    cases,
+    currentCase,
+    messages,
+    isProcessing,
+    setCurrentCase,
+    processCommand
+  } = useCourtroom();
 
-  const [currentCase, setCurrentCase] = useState<Case | null>(cases[0]);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'system',
-      content: 'Welcome to RumbleCourt AI. I can help you manage cases, start trials, and facilitate AI-powered legal debates. Try commands like "create new case" or "list my cases".',
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    }
-  ]);
   const [inputValue, setInputValue] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSelectCase = (caseId: string) => {
-    const selected = cases.find(c => c.id === caseId);
-    setCurrentCase(selected || null);
-
-    // Add system message about case selection
-    const systemMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'system',
-      content: `Loaded case: ${selected?.title}\nPlaintiff: ${selected?.plaintiff} vs Defendant: ${selected?.defendant}`,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    };
-    setMessages(prev => [...prev, systemMessage]);
+  const handleSelectCase = (caseId: string): void => {
+    setCurrentCase(caseId);
   };
 
-  const processCommand = async (command: string) => {
-    setIsProcessing(true);
-
-    const userMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: command,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    let response = '';
-
-    if (command.toLowerCase().includes('create') && command.toLowerCase().includes('case')) {
-      response = `I'll create a new case for you. Please provide the case details:
-
-• Case title
-• Plaintiff name
-• Defendant name
-• Brief description
-
-You can also paste evidence as text or upload a document.`;
-    } else if (command.toLowerCase().includes('start trial')) {
-      if (currentCase) {
-        response = `Starting trial for "${currentCase.title}"...\n\nInitializing AI attorneys for both sides.`;
-        setTimeout(() => {
-          const plaintiffArg: ChatMessage = {
-            id: `msg-${Date.now()}-p`,
-            role: 'plaintiff',
-            content: `Your Honor, my client ${currentCase.plaintiff} has a strong case. The evidence clearly shows...`,
-            timestamp: new Date(),
-            timestampString: new Date().toLocaleTimeString()
-          };
-          setMessages(prev => [...prev, plaintiffArg]);
-        }, 2000);
-      } else {
-        response = 'No active case found. Please create or load a case first using "create new case" or select one from the sidebar.';
-      }
-    } else if (command.toLowerCase().includes('add evidence')) {
-      response = 'Please paste the evidence text below, or describe the document you\'d like to add. I\'ll store it and associate it with the current case.';
-    } else if (command.toLowerCase().includes('show case') || command.toLowerCase().includes('case details')) {
-      if (currentCase) {
-        response = [
-          '**Current Case Details**',
-          '',
-          `• ID: ${currentCase.id}`,
-          `• Title: ${currentCase.title}`,
-          `• Plaintiff: ${currentCase.plaintiff}`,
-          `• Defendant: ${currentCase.defendant}`,
-          `• Status: ${currentCase.status}`,
-          `• Evidence count: ${currentCase.evidence.length}`,
-        ].join('\n');
-      } else {
-        response = 'No active case. Create one with "create new case" or select from sidebar.';
-      }
-    } else if (command.toLowerCase().includes('list cases')) {
-      response = `You have ${cases.length} cases:\n\n` +
-        cases.map((c, i) => `${i + 1}. ${c.title} (${c.status})`).join('\n');
-    } else {
-      response = [
-        'I can help you with:',
-        '',
-        '• "create new case" - Start a new legal case',
-        '• "start trial" - Begin AI attorney debate',
-        '• "add evidence [text]" - Add evidence to case',
-        '• "show case details" - View current case',
-        '• "list cases" - See all your cases',
-        '• "render verdict" - Get AI judge decision',
-      ].join('\n');
-    }
-
-    const assistantMessage: ChatMessage = {
-      id: `msg-${Date.now()}-a`,
-      role: 'assistant',
-      content: response,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    };
-
-    setMessages(prev => [...prev, assistantMessage]);
-    setIsProcessing(false);
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = (): void => {
     if (!inputValue.trim() || isProcessing) return;
     processCommand(inputValue);
     setInputValue('');
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import CourtroomSimulation from '../../components/CourtroomSimulation';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import { CourtroomProvider } from '../../context/CourtroomContext';
 
 // Client-only particle component to avoid hydration mismatch
 type Particle = {
@@ -89,7 +90,9 @@ const CourtroomPage = () => {
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s', animationDuration: '4s' }} />
 
         <div className="relative z-10 min-h-screen pt-24 pb-8">
-          <CourtroomSimulation />
+          <CourtroomProvider>
+            <CourtroomSimulation />
+          </CourtroomProvider>
         </div>
       </main>
     </ProtectedRoute>

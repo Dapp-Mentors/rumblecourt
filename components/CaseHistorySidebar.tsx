@@ -8,11 +8,8 @@ interface CaseHistorySidebarProps {
   onSelectCase: (caseId: string) => void;
 }
 
-const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
-  cases,
-  currentCase,
-  onSelectCase
-}) => {
+const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({ cases, currentCase, onSelectCase }) => {
+
   const getStatusIcon = (status: Case['status']) => {
     switch (status) {
       case 'active':
@@ -25,19 +22,6 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
         return <XCircle className="w-3 h-3 text-slate-400" />;
     }
   };
-
-  // const getStatusColor = (status: Case['status']) => {
-  //   switch (status) {
-  //     case 'active':
-  //       return 'border-green-500/50 bg-green-500/10';
-  //     case 'completed':
-  //       return 'border-blue-500/50 bg-blue-500/10';
-  //     case 'draft':
-  //       return 'border-slate-500/50 bg-slate-500/10';
-  //     default:
-  //       return 'border-slate-500/50 bg-slate-500/10';
-  //   }
-  // };
 
   return (
     <div className="h-full flex flex-col bg-slate-900/50 backdrop-blur-sm border-r border-slate-700/50">
