@@ -1,9 +1,9 @@
 import { http, createConfig } from 'wagmi'
-import { mainnet, polygon, polygonAmoy } from 'wagmi/chains'
+import { mainnet, polygon, polygonAmoy, hardhat } from 'wagmi/chains'
 import { metaMask } from 'wagmi/connectors'
 
 export const config = createConfig({
-  chains: [mainnet, polygon, polygonAmoy],
+  chains: [mainnet, polygon, polygonAmoy, hardhat],
   connectors: [
     metaMask(),
   ],
@@ -11,6 +11,7 @@ export const config = createConfig({
     [mainnet.id]: http(),
     [polygon.id]: http(),
     [polygonAmoy.id]: http(),
+    [hardhat.id]: http(),
   },
 })
 

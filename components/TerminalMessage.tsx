@@ -1,5 +1,6 @@
 import React from 'react';
 import { Terminal, Sparkles, User, Bot, Shield, MessageSquare, FileText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from './types';
 
 interface TerminalMessageProps {
@@ -98,7 +99,9 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
             {message.timestampString}
           </span>
         </div>
-        <p className="text-slate-300 leading-relaxed whitespace-pre-line">{message.content}</p>
+        <div className="text-slate-300 leading-relaxed">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+        </div>
         {message.evidence && (
           <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
             <div className="flex items-center gap-2 mb-2">
