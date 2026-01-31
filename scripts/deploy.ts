@@ -16,20 +16,17 @@ const __dirname = dirname(__filename)
 /*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
 
-type ContractAddresses = {
-  VerdictStorage: string
-  AdjournmentTracking: string
-  CourtroomParticipants: string
-}
-
-type NetworkDeployment = {
+type DeploymentInfo = {
   network: string
-  updatedAt: string
+  deployedAt: string
   deployer: string
-  contracts: ContractAddresses
+  contractAddress: string
+  transactionHash: string
 }
 
-type DeploymentsFile = Record<string, NetworkDeployment>
+type DeploymentsFile = {
+  [network: string]: DeploymentInfo
+}
 
 /* -------------------------------------------------------------------------- */
 /*                              Config / Paths                                */
@@ -39,7 +36,7 @@ const DEPLOYMENTS_PATH = path.join(
   __dirname,
   '..',
   'artifacts',
-  'contracts.json'
+  'RumbleCourt.json'
 )
 
 /* -------------------------------------------------------------------------- */
@@ -47,39 +44,33 @@ const DEPLOYMENTS_PATH = path.join(
 /* -------------------------------------------------------------------------- */
 
 async function main(): Promise<void> {
-  console.log('Courtroom System - Deploying Contracts')
-  console.log('======================================')
+  console.log('RumbleCourt - Deployment Script')
+  console.log('================================')
 
   const network = hre.network.name
-
   const [deployer] = await hre.ethers.getSigners()
+
   console.log(`Network: ${network}`)
   console.log(`Deploying with account: ${deployer.address}`)
+  console.log(`Account balance: ${await hre.ethers.provider.getBalance(deployer.address)}`)
+  console.log('')
 
-  /* ------------------------------- Deployments ------------------------------ */
+  /* ------------------------------- Deploy Contract ------------------------------ */
 
-  const VerdictStorage = await hre.ethers.getContractFactory('VerdictStorage')
-  const verdictStorage = await VerdictStorage.deploy()
-  await verdictStorage.waitForDeployment()
+  console.log('Deploying RumbleCourt contract...')
+  const RumbleCourtFactory = await hre.ethers.getContractFactory('RumbleCourt')
+  const rumbleCourt = await RumbleCourtFactory.deploy()
+  await rumbleCourt.waitForDeployment()
 
-  const AdjournmentTracking = await hre.ethers.getContractFactory(
-    'AdjournmentTracking'
-  )
-  const adjournmentTracking = await AdjournmentTracking.deploy()
-  await adjournmentTracking.waitForDeployment()
+  const contractAddress = await rumbleCourt.getAddress()
+  const deploymentTx = rumbleCourt.deploymentTransaction()
 
-  const CourtroomParticipants = await hre.ethers.getContractFactory(
-    'CourtroomParticipants'
-  )
-  const courtroomParticipants = await CourtroomParticipants.deploy()
-  await courtroomParticipants.waitForDeployment()
+  console.log('✅ RumbleCourt deployed successfully!')
+  console.log(`Contract address: ${contractAddress}`)
+  console.log(`Transaction hash: ${deploymentTx?.hash}`)
+  console.log('')
 
-  /* ----------------------------- Post-Deploy Setup ---------------------------- */
-
-  await verdictStorage.addAuthorizedJudge(deployer.address)
-  await adjournmentTracking.addAuthorizedJudge(deployer.address)
-
-  /* --------------------------- Load Existing JSON ---------------------------- */
+  /* ----------------------------- Save Deployment ----------------------------- */
 
   const deploymentsDir = path.dirname(DEPLOYMENTS_PATH)
   if (!fs.existsSync(deploymentsDir)) {
@@ -87,42 +78,50 @@ async function main(): Promise<void> {
   }
 
   let deployments: DeploymentsFile = {}
-
   if (fs.existsSync(DEPLOYMENTS_PATH)) {
     deployments = JSON.parse(
       fs.readFileSync(DEPLOYMENTS_PATH, 'utf-8')
     ) as DeploymentsFile
   }
 
-  /* ----------------------------- Save Deployment ----------------------------- */
-
   deployments['contract'] = {
     network,
-    updatedAt: new Date().toISOString(),
+    deployedAt: new Date().toISOString(),
     deployer: deployer.address,
-    contracts: {
-      VerdictStorage: await verdictStorage.getAddress(),
-      AdjournmentTracking: await adjournmentTracking.getAddress(),
-      CourtroomParticipants: await courtroomParticipants.getAddress(),
-    },
+    contractAddress,
+    transactionHash: deploymentTx?.hash || 'unknown',
   }
 
   fs.writeFileSync(DEPLOYMENTS_PATH, JSON.stringify(deployments, null, 2))
+  console.log(`Deployment info saved to: ${DEPLOYMENTS_PATH}`)
+  console.log('')
 
   /* --------------------------------- Summary -------------------------------- */
 
-  console.log('\nDeployment Summary')
+  console.log('Deployment Summary')
   console.log('==================')
-  console.log(deployments['contract'].contracts)
-  console.log(`\nSaved to ${DEPLOYMENTS_PATH}`)
+  console.log('Network:', network)
+  console.log('Contract:', contractAddress)
+  console.log('Owner:', deployer.address)
+  console.log('')
 
-  console.log('\nNext steps:')
-  console.log('1. Update frontend to read deployments/contracts.json')
+  console.log('Next Steps:')
+  console.log('1. Update your frontend with the contract address')
   console.log('2. Run tests: npx hardhat test')
-  console.log('3. Verify contracts if deploying to public networks')
+  console.log('3. Verify contract (for public networks):')
+  console.log(`   npx hardhat verify --network ${network} ${contractAddress}`)
+  console.log('')
+
+  if (network !== 'hardhat' && network !== 'localhost') {
+    console.log('⚠️  IMPORTANT: Save the contract address for your frontend!')
+    console.log(`Contract Address: ${contractAddress}`)
+  }
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('Deployment failed!')
+    console.error(error)
+    process.exit(1)
+  })

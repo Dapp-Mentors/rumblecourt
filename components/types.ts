@@ -1,125 +1,229 @@
-// Types for the courtroom page
+// Simplified types for the minimal RumbleCourt contract
+
+// Case Status Enum
+export enum CaseStatus {
+  PENDING = 0,
+  IN_TRIAL = 1,
+  COMPLETED = 2,
+  APPEALED = 3,
+}
+
+// Verdict Type Enum
+export enum VerdictType {
+  GUILTY = 0,
+  NOT_GUILTY = 1,
+  SETTLEMENT = 2,
+  DISMISSED = 3,
+}
+
+// Case interface
 export interface Case {
-  id: string;
-  title: string;
-  description: string;
-  plaintiff: string;
-  defendant: string;
-  evidence: Evidence[];
-  status: 'draft' | 'active' | 'completed';
-  createdAt: Date;
-  verdict?: string;
+  caseId: bigint
+  plaintiff: string
+  caseTitle: string
+  evidenceHash: string
+  filedAt: bigint
+  status: CaseStatus
 }
 
+// Verdict interface
+export interface Verdict {
+  caseId: bigint
+  verdictType: VerdictType
+  reasoning: string
+  timestamp: bigint
+  isFinal: boolean
+}
+
+// Transaction receipt
+export interface TransactionReceipt {
+  hash: string
+  blockNumber: number
+  from: string
+  to: string
+  gasUsed: bigint
+  status: 'success' | 'reverted'
+}
+
+// Evidence interface for chat messages
 export interface Evidence {
-  id: string;
-  type: 'text' | 'document';
-  content: string;
-  description: string;
-  submittedBy: 'plaintiff' | 'defendant';
+  description: string
+  content: string
 }
 
+// Chat message for UI
 export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'plaintiff' | 'defendant' | 'judge' | 'system';
-  content: string;
-  timestamp: Date;
-  timestampString: string;
-  evidence?: Evidence;
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  timestampString: string
+  evidence?: Evidence
 }
 
-// MCP Tool Types
-export interface ToolCall {
-  id: string;
-  type: 'function';
-  function: {
-    name: string;
-    arguments: string;
-  };
+// Tool execution result
+export interface ToolResult {
+  success: boolean
+  message?: string
+  error?: string
+  data?: unknown
+  transactionHash?: string
+  blockNumber?: number
 }
 
+// Wallet context
+export interface WalletContextType {
+  isConnected: boolean
+  address: string | null
+  chainId: number | undefined
+  isOwner: boolean
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+}
+
+// Case display for UI
+export interface CaseDisplay {
+  id: string
+  caseId: bigint
+  title: string
+  plaintiff: string
+  evidenceHash: string
+  filedAt: Date
+  status: 'PENDING' | 'IN_TRIAL' | 'COMPLETED' | 'APPEALED'
+  verdict?: {
+    verdictType: 'GUILTY' | 'NOT_GUILTY' | 'SETTLEMENT' | 'DISMISSED'
+    reasoning: string
+    timestamp: Date
+    isFinal: boolean
+  }
+}
+
+// MCP Tool parameter types
+export interface FileCaseParams {
+  caseTitle: string
+  evidenceHash: string
+}
+
+export interface GetCaseParams {
+  caseId: bigint
+}
+
+export interface StartTrialParams {
+  caseId: bigint
+}
+
+export interface RecordVerdictParams {
+  caseId: bigint
+  verdictType: '0' | '1' | '2' | '3'
+  reasoning: string
+  isFinal: boolean
+}
+
+export interface AppealCaseParams {
+  caseId: bigint
+}
+
+export interface GetUserCasesParams {
+  userAddress: string
+}
+
+// OpenRouter API types
 export interface OpenAIMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
-  tool_call_id?: string;
-  tool_calls?: ToolCall[];
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+}
+
+export interface ToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
 }
 
 export interface OpenAIResponse {
+  id: string
+  object: string
+  created: number
+  model: string
   choices: Array<{
+    index: number
     message: {
-      role: 'assistant';
-      content?: string | null;
-      tool_calls?: ToolCall[];
-    };
-    finish_reason: string;
-  }>;
+      role: string
+      content: string | null
+      tool_calls?: ToolCall[]
+    }
+    finish_reason: string
+  }>
+  usage?: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
 }
 
-export interface JsonSchemaProperty {
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-  description?: string;
-  enum?: string[];
+// Contract event types
+export interface CaseFiledEvent {
+  caseId: bigint
+  plaintiff: string
+  caseTitle: string
+  filedAt: bigint
 }
 
-export interface VerdictData {
-  caseId: string;
-  verdictId: string;
-  judge: string;
-  verdictType: string;
-  verdictDetails: string;
-  reasoning: string;
-  timestamp: string;
-  isFinal: boolean;
-  supportingDocumentsCount: number;
-  supportingDocuments: string[];
+export interface TrialStartedEvent {
+  caseId: bigint
+  startedAt: bigint
 }
 
-export interface AppealData {
-  appealId: string;
-  originalVerdictId: string;
-  appellant: string;
-  appealReason: string;
-  status: string;
-  filingDate: string;
-  hearingDate: string;
-  appealDocumentsCount: number;
-  appealDocuments: string[];
+export interface VerdictRecordedEvent {
+  caseId: bigint
+  verdictType: VerdictType
+  isFinal: boolean
+  timestamp: bigint
 }
 
-export interface AdjournmentData {
-  adjournmentId: string;
-  caseId: string;
-  requestedBy: string;
-  reason: string;
-  reasonDetails: string;
-  originalHearingDate: string;
-  newHearingDate: string;
-  status: string;
-  requestDate: string;
-  approvalDate: string;
-  approvedBy: string;
-  supportingDocumentsCount: number;
-  supportingDocuments: string[];
+export interface CaseAppealedEvent {
+  caseId: bigint
+  plaintiff: string
+  appealedAt: bigint
 }
 
-export interface ParticipantData {
-  participantAddress: string;
-  participantType: string;
-  llmProvider: string;
-  llmModel: string;
-  llmModelName: string;
-  expertiseLevel: number;
-  eloquenceScore: number;
-  analyticalScore: number;
-  emotionalIntelligence: number;
-  traits: string;
+// Helper type for blockchain service responses
+export interface BlockchainResponse<T = unknown> {
+  success: boolean
+  data?: T
+  error?: string
+  transactionHash?: string
+  blockNumber?: number
 }
 
-export interface CourtData {
-  courtId: string;
-  courtName: string;
-  description: string;
-  participants: ParticipantData[];
-  isComplete: boolean;
+// Statistics types
+export interface SystemStatistics {
+  totalCases: bigint
+  pendingCases: number
+  activeCases: number
+  completedCases: number
+  appealedCases: number
+}
+
+// Error types
+export class ContractError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public transactionHash?: string,
+  ) {
+    super(message)
+    this.name = 'ContractError'
+  }
+}
+
+export class WalletError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message)
+    this.name = 'WalletError'
+  }
 }

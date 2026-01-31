@@ -1,31 +1,66 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWallet } from './WalletContext';
-import { courtroomMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
+import { rumbleCourtMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
 import { config } from '../lib/wagmi';
-import {
-  Case,
-  ChatMessage,
-  OpenAIMessage,
-  OpenAIResponse,
-  VerdictData,
-  AppealData,
-  AdjournmentData,
-  ParticipantData,
-  CourtData
-} from '../components/types';
+import { getOwner } from '../services/blockchain';
 
-// Define proper types for tool-related parameters
-interface ToolExecutionContext {
-  toolCallId: string;
-  messages: ChatMessage[];
+// Simplified types for the new minimal contract
+import { CaseStatus } from '../components/types';
+
+interface Case {
+  id: string;
+  caseId: bigint;
+  caseTitle: string;
+  plaintiff: string;
+  evidenceHash: string;
+  filedAt: bigint;
+  status: CaseStatus;
+  verdict?: {
+    verdictType: 'GUILTY' | 'NOT_GUILTY' | 'SETTLEMENT' | 'DISMISSED';
+    reasoning: string;
+    timestamp: bigint;
+    isFinal: boolean;
+  };
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  timestampString: string;
+}
+
+interface OpenAIMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+interface OpenAIResponse {
+  choices: Array<{
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls?: ToolCall[];
+    };
+    finish_reason: string;
+  }>;
 }
 
 interface ToolCall {
   id: string;
+  type: 'function';
   function: {
     name: string;
     arguments: string;
   };
+}
+
+interface ToolExecutionContext {
+  toolCallId: string;
+  messages: ChatMessage[];
 }
 
 interface ZodTypeDef {
@@ -53,7 +88,7 @@ interface CourtroomContextType {
   selectedTool: string | null;
 
   // MCP Tools
-  courtroomTools: typeof courtroomMcpTools;
+  courtroomTools: typeof rumbleCourtMcpTools;
 
   // Actions
   setCurrentCase: (caseId: string | null) => void;
@@ -86,89 +121,76 @@ export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }
   const { isConnected, address, chainId } = useWallet();
 
   // State
-  const [cases] = useState<Case[]>([
-    {
-      id: 'case-001',
-      title: 'Contract Breach Dispute',
-      description: 'Dispute over alleged breach of service contract terms and payment obligations.',
-      plaintiff: 'TechCorp Solutions',
-      defendant: 'Global Services Inc.',
-      evidence: [
-        {
-          id: 'ev-001',
-          type: 'document',
-          content: 'Contract signed on 2024-01-15 with 6-month term',
-          description: 'Original service agreement',
-          submittedBy: 'plaintiff'
-        }
-      ],
-      status: 'completed',
-      createdAt: new Date('2024-01-15'),
-      verdict: 'Plaintiff awarded $50,000 in damages'
-    },
-    {
-      id: 'case-002',
-      title: 'IP Infringement Claim',
-      description: 'Alleged copyright violation in software development',
-      plaintiff: 'InnovateSoft Inc.',
-      defendant: 'CodeMasters LLC',
-      evidence: [],
-      status: 'active',
-      createdAt: new Date('2024-01-20')
-    },
-    {
-      id: 'case-003',
-      title: 'Employment Contract Dispute',
-      description: 'Breach of non-compete agreement',
-      plaintiff: 'Sarah Johnson',
-      defendant: 'TechStart Corp',
-      evidence: [],
-      status: 'draft',
-      createdAt: new Date('2024-01-18')
-    }
-  ]);
-
-  const [currentCase, setCurrentCaseState] = useState<Case | null>(cases[0]);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [currentCase, setCurrentCaseState] = useState<Case | null>(null);
   const [messages, setMessagesState] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'system',
-      content: `Welcome to RumbleCourt AI - Your Blockchain-Powered Legal Companion! 🏛️
+      content: `Welcome to RumbleCourt AI - Your Minimal Blockchain Courtroom! 🏛️⚖️
 
-I'm here to help you navigate the complete courtroom workflow. To get started, you'll need to:
+I'm your AI legal companion, powered by the streamlined RumbleCourt smart contract.
 
-**📋 FOUNDATIONAL SETUP (Do these first):**
-1. **Connect Your Wallet** - Essential for all blockchain operations
-2. **Create Participant Profiles** - Define judges, prosecutors, defense attorneys, and clerks
-3. **Establish a Court** - Set up your courtroom with proper participants
+**🎯 The RumbleCourt Flow:**
+File Case → System Starts Trial → AI Lawyers Debate (off-chain) → 
+AI Judge Decides (off-chain) → Verdict Recorded (on-chain) → Appeal if Needed
 
-**⚖️ COURTROOM OPERATIONS (After setup):**
-4. Record verdicts and decisions
-5. File appeals if needed
-6. Request adjournments
-7. Manage ongoing cases
-
-**💡 Quick Start Examples:**
-- "Help me set up my first court"
-- "Create a participant profile"
-- "Show me the courtroom workflow"
-- "What do I need before recording a verdict?"
-
-Let's build your blockchain courtroom together!`,
+Let's get started with your blockchain legal journey!`,
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     }
   ]);
   const [isProcessing, setIsProcessingState] = useState(false);
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
 
-  // Update wallet context when wallet changes
+  // Update wallet context and check owner status when wallet changes
   useEffect(() => {
-    setWalletContext(isConnected, address || null);
+    const checkOwnerStatus = async () => {
+      if (isConnected && address) {
+        try {
+          const ownerAddress = await getOwner();
+          const ownerStatus = address.toLowerCase() === ownerAddress.toLowerCase();
+          setIsOwner(ownerStatus);
+          setWalletContext(isConnected, address, ownerStatus);
+        } catch (error) {
+          console.error('Failed to check owner status:', error);
+          setWalletContext(isConnected, address, false);
+        }
+      } else {
+        setWalletContext(false, null, false);
+      }
+    };
+
+    checkOwnerStatus();
+  }, [isConnected, address]);
+
+  // Load user cases when wallet connects
+  useEffect(() => {
+    const loadUserCases = async () => {
+      if (isConnected && address) {
+        try {
+          const tool = courtroomTools.get_user_cases;
+          if (tool && typeof tool.execute === 'function') {
+            const userCases = await tool.execute({ userAddress: address }, { toolCallId: 'load-cases', messages: [] });
+            if (userCases && typeof userCases === 'object' && 'cases' in userCases) {
+              const casesArray = userCases.cases as Case[];
+              setCases(casesArray);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load user cases:', error);
+        }
+      } else {
+        setCases([]);
+      }
+    };
+
+    loadUserCases();
   }, [isConnected, address]);
 
   // MCP Tools
-  const courtroomTools = courtroomMcpTools;
+  const courtroomTools = rumbleCourtMcpTools;
 
   const setCurrentCase = (caseId: string | null): void => {
     if (caseId) {
@@ -237,7 +259,7 @@ Let's build your blockchain courtroom together!`,
 
               let type: 'string' | 'number' | 'boolean' | 'object' | 'array' = 'string';
               if (actualDef.typeName === 'ZodString') type = 'string';
-              else if (actualDef.typeName === 'ZodNumber') type = 'number';
+              else if (actualDef.typeName === 'ZodNumber' || actualDef.typeName === 'ZodBigInt') type = 'number';
               else if (actualDef.typeName === 'ZodBoolean') type = 'boolean';
               else if (actualDef.typeName === 'ZodObject') type = 'object';
               else if (actualDef.typeName === 'ZodArray') type = 'array';
@@ -278,94 +300,6 @@ Let's build your blockchain courtroom together!`,
     });
   };
 
-  const formatVerdictSection = (lines: string[], verdict: VerdictData): void => {
-    lines.push('### ⚖️ Verdict Details');
-    lines.push('');
-    lines.push(`**Case ID**: ${verdict.caseId}`);
-    lines.push(`**Verdict Type**: ${verdict.verdictType}`);
-    lines.push(`**Judge**: ${verdict.judge}`);
-    lines.push(`**Final**: ${verdict.isFinal ? 'Yes' : 'No'}`);
-    lines.push(`**Timestamp**: ${new Date(Number(verdict.timestamp) * 1000).toLocaleString()}`);
-    lines.push('');
-    lines.push('**Details**:');
-    lines.push(verdict.verdictDetails);
-    lines.push('');
-    lines.push('**Reasoning**:');
-    lines.push(verdict.reasoning);
-    lines.push('');
-  };
-
-  const formatAppealSection = (lines: string[], appeal: AppealData): void => {
-    lines.push('### 📋 Appeal Details');
-    lines.push('');
-    lines.push(`**Appeal ID**: ${appeal.appealId}`);
-    lines.push(`**Original Verdict ID**: ${appeal.originalVerdictId}`);
-    lines.push(`**Appellant**: ${appeal.appellant}`);
-    lines.push(`**Status**: ${appeal.status}`);
-    lines.push(`**Filing Date**: ${new Date(Number(appeal.filingDate) * 1000).toLocaleString()}`);
-    lines.push('');
-    lines.push('**Reason**:');
-    lines.push(appeal.appealReason);
-    lines.push('');
-  };
-
-  const formatAdjournmentSection = (lines: string[], adjournment: AdjournmentData): void => {
-    lines.push('### 📅 Adjournment Details');
-    lines.push('');
-    lines.push(`**Adjournment ID**: ${adjournment.adjournmentId}`);
-    lines.push(`**Case ID**: ${adjournment.caseId}`);
-    lines.push(`**Requested By**: ${adjournment.requestedBy}`);
-    lines.push(`**Reason**: ${adjournment.reason}`);
-    lines.push(`**Status**: ${adjournment.status}`);
-    lines.push(`**Original Date**: ${new Date(Number(adjournment.originalHearingDate) * 1000).toLocaleString()}`);
-    lines.push(`**New Date**: ${new Date(Number(adjournment.newHearingDate) * 1000).toLocaleString()}`);
-    lines.push('');
-  };
-
-  const formatParticipantSection = (lines: string[], participant: ParticipantData): void => {
-    lines.push('### 👥 Participant Details');
-    lines.push('');
-    lines.push(`**Address**: ${participant.participantAddress}`);
-    lines.push(`**Type**: ${participant.participantType}`);
-    lines.push(`**LLM Provider**: ${participant.llmProvider}`);
-    lines.push(`**Model**: ${participant.llmModel}`);
-    lines.push(`**Expertise Level**: ${participant.expertiseLevel}/10`);
-    lines.push(`**Eloquence Score**: ${participant.eloquenceScore}/10`);
-    lines.push(`**Analytical Score**: ${participant.analyticalScore}/10`);
-    lines.push(`**Emotional Intelligence**: ${participant.emotionalIntelligence}/10`);
-    lines.push('');
-  };
-
-  const formatCourtSection = (lines: string[], court: CourtData): void => {
-    lines.push('### 🏛️ Court Details');
-    lines.push('');
-    lines.push(`**Court ID**: ${court.courtId}`);
-    lines.push(`**Name**: ${court.courtName}`);
-    lines.push(`**Description**: ${court.description}`);
-    lines.push(`**Complete**: ${court.isComplete ? '✅ Yes - Ready for proceedings' : '❌ No - Missing required participants'}`);
-    lines.push(`**Participants**: ${court.participants.length}`);
-    lines.push('');
-  };
-
-  const formatAdditionalDetails = (lines: string[], outputData: Record<string, unknown>): void => {
-    const displayedKeys = ['success', 'message', 'transactionHash', 'verdictId', 'appealId', 'adjournmentId', 'verdict', 'appeal', 'adjournment', 'participant', 'court', 'error'];
-    const remainingKeys = Object.keys(outputData).filter(key => !displayedKeys.includes(key));
-
-    if (remainingKeys.length > 0) {
-      lines.push('### 📊 Additional Details');
-      lines.push('');
-      remainingKeys.forEach(key => {
-        const value = outputData[key];
-        if (typeof value === 'object' && value !== null) {
-          lines.push(`- **${key}**: \`${JSON.stringify(value)}\``);
-        } else {
-          lines.push(`- **${key}**: ${value}`);
-        }
-      });
-      lines.push('');
-    }
-  };
-
   const formatToolResponse = (toolName: string, toolArgs: Record<string, unknown>, toolOutput: unknown): string => {
     const lines: string[] = [];
 
@@ -380,6 +314,7 @@ Let's build your blockchain courtroom together!`,
       outputData = toolOutput as Record<string, unknown>;
     }
 
+    // Handle errors
     if ('error' in outputData) {
       lines.push('');
       lines.push(`### ❌ Error`);
@@ -389,6 +324,7 @@ Let's build your blockchain courtroom together!`,
       return lines.join('\n');
     }
 
+    // Handle unsuccessful operations
     if ('success' in outputData && !outputData.success) {
       lines.push('');
       lines.push(`### ⚠️ Operation Failed`);
@@ -400,6 +336,7 @@ Let's build your blockchain courtroom together!`,
       return lines.join('\n');
     }
 
+    // Success message
     lines.push('');
     lines.push('### ✅ Operation Successful');
     lines.push('');
@@ -409,48 +346,68 @@ Let's build your blockchain courtroom together!`,
       lines.push('');
     }
 
+    // Transaction details
     if ('transactionHash' in outputData && outputData.transactionHash) {
-      lines.push(`🔗 **Transaction ID**: \`${outputData.transactionHash}\``);
+      lines.push(`🔗 **Transaction Hash**: \`${outputData.transactionHash}\``);
     }
 
-    if ('verdictId' in outputData && outputData.verdictId) {
-      lines.push(`⚖️ **Verdict ID**: \`${outputData.verdictId}\``);
+    if ('blockNumber' in outputData && outputData.blockNumber) {
+      lines.push(`📦 **Block Number**: ${outputData.blockNumber}`);
     }
 
-    if ('appealId' in outputData && outputData.appealId) {
-      lines.push(`📋 **Appeal ID**: \`${outputData.appealId}\``);
+    if ('caseId' in outputData && outputData.caseId) {
+      lines.push(`📋 **Case ID**: \`${outputData.caseId}\``);
     }
 
-    if ('adjournmentId' in outputData && outputData.adjournmentId) {
-      lines.push(`📅 **Adjournment ID**: \`${outputData.adjournmentId}\``);
-    }
-
-    if ('transactionHash' in outputData || 'verdictId' in outputData || 'appealId' in outputData || 'adjournmentId' in outputData) {
+    // Case details
+    if ('case' in outputData && typeof outputData.case === 'object') {
+      const caseData = outputData.case as Record<string, unknown>;
       lines.push('');
+      lines.push('### 📋 Case Details');
+      lines.push('');
+      Object.entries(caseData).forEach(([key, value]) => {
+        lines.push(`- **${key}**: ${value}`);
+      });
     }
 
+    // Verdict details
     if ('verdict' in outputData && typeof outputData.verdict === 'object') {
-      formatVerdictSection(lines, outputData.verdict as VerdictData);
+      const verdict = outputData.verdict as Record<string, unknown>;
+      lines.push('');
+      lines.push('### ⚖️ Verdict Details');
+      lines.push('');
+      Object.entries(verdict).forEach(([key, value]) => {
+        lines.push(`- **${key}**: ${value}`);
+      });
     }
 
-    if ('appeal' in outputData && typeof outputData.appeal === 'object') {
-      formatAppealSection(lines, outputData.appeal as AppealData);
+    // Next steps
+    if ('nextSteps' in outputData && outputData.nextSteps) {
+      lines.push('');
+      lines.push('### 🎯 Next Steps');
+      lines.push('');
+      lines.push(`${outputData.nextSteps}`);
     }
 
-    if ('adjournment' in outputData && typeof outputData.adjournment === 'object') {
-      formatAdjournmentSection(lines, outputData.adjournment as AdjournmentData);
+    // Additional details
+    const displayedKeys = ['success', 'message', 'transactionHash', 'blockNumber', 'caseId', 'case', 'verdict', 'nextSteps', 'error'];
+    const remainingKeys = Object.keys(outputData).filter(key => !displayedKeys.includes(key));
+
+    if (remainingKeys.length > 0) {
+      lines.push('');
+      lines.push('### 📊 Additional Details');
+      lines.push('');
+      remainingKeys.forEach(key => {
+        const value = outputData[key];
+        if (typeof value === 'object' && value !== null) {
+          lines.push(`- **${key}**: \`${JSON.stringify(value)}\``);
+        } else {
+          lines.push(`- **${key}**: ${value}`);
+        }
+      });
     }
 
-    if ('participant' in outputData && typeof outputData.participant === 'object') {
-      formatParticipantSection(lines, outputData.participant as ParticipantData);
-    }
-
-    if ('court' in outputData && typeof outputData.court === 'object') {
-      formatCourtSection(lines, outputData.court as CourtData);
-    }
-
-    formatAdditionalDetails(lines, outputData);
-
+    lines.push('');
     return lines.join('\n');
   };
 
@@ -466,7 +423,6 @@ Let's build your blockchain courtroom together!`,
         messages: []
       };
 
-      // Cast execute to a typed function to satisfy differing tool input types at call sites
       type ToolExecuteFn = (args: Record<string, unknown>, ctx: ToolExecutionContext) => Promise<unknown> | AsyncIterable<unknown> | unknown;
       const exec = tool.execute as unknown as ToolExecuteFn;
       const result = await exec(args, context);
@@ -499,52 +455,6 @@ Let's build your blockchain courtroom together!`,
     setMessagesState(prev => [...prev, userMessage]);
 
     try {
-      // Check if user wants to use a specific tool
-      const toolMatch = command.match(/use\s+(.+?)\s+tool/i);
-      if (toolMatch) {
-        const toolName = toolMatch[1].toLowerCase().replace(/\s+/g, '_');
-        setSelectedToolState(toolName);
-        addMessage({
-          id: `msg-${Date.now()}-tool`,
-          role: 'system',
-          content: `Selected tool: ${toolName}. Please provide the required parameters.`,
-          timestamp: new Date(),
-          timestampString: new Date().toLocaleTimeString()
-        });
-        return;
-      }
-
-      // Check if user is providing tool parameters
-      if (selectedTool && command.includes(':')) {
-        const tool = courtroomTools[selectedTool as keyof typeof courtroomTools];
-        if (tool) {
-          // Parse parameters from command
-          const params: Record<string, unknown> = {};
-          const paramMatches = command.match(/(\w+)\s*:\s*([^,]+)/g);
-
-          if (paramMatches) {
-            paramMatches.forEach(match => {
-              const [key, value] = match.split(':').map(s => s.trim());
-              params[key] = isNaN(Number(value)) ? value : Number(value);
-            });
-          }
-
-          const result = await executeTool(selectedTool, params);
-          const formattedResponse = formatToolResponse(selectedTool, params, result);
-
-          const assistantMessage: ChatMessage = {
-            id: `msg-${Date.now()}-a`,
-            role: 'assistant',
-            content: formattedResponse,
-            timestamp: new Date(),
-            timestampString: new Date().toLocaleTimeString()
-          };
-          setMessagesState(prev => [...prev, assistantMessage]);
-          setSelectedToolState(null);
-          return;
-        }
-      }
-
       // Use OpenRouter API for command processing
       const response = await processCommandWithOpenRouter(command);
 
@@ -574,144 +484,128 @@ Let's build your blockchain courtroom together!`,
 
   const getSystemPrompt = (): OpenAIMessage => ({
     role: 'system',
-    content: `You are an expert blockchain courtroom assistant helping users navigate the complete legal workflow on-chain.
+    content: `You are RumbleCourt AI Assistant - an expert blockchain legal companion helping users navigate the minimal, streamlined RumbleCourt smart contract system.
 
 ═══════════════════════════════════════════════════════════════
-🏛️ COURTROOM WORKFLOW - FOUNDATIONAL ORDER IS CRITICAL
+🏛️ RUMBLECOURT WORKFLOW - SIMPLE & EFFICIENT
 ═══════════════════════════════════════════════════════════════
 
-**PHASE 1: FOUNDATIONAL SETUP** (Must complete BEFORE any courtroom operations)
-────────────────────────────────────────────────────────────────
-1️⃣ **WALLET CONNECTION** (Prerequisite for everything)
-   - User MUST have wallet connected
-   - Check with: get_connected_wallet
-   - If not connected: Guide them to connect their wallet first
+**THE COMPLETE FLOW:**
+1. User files case (with title and evidence)
+2. System starts trial (owner only)
+3. AI lawyers debate (off-chain)
+4. AI judge decides (off-chain)
+5. Verdict recorded on-chain (owner only)
+6. User can appeal if final verdict
 
-2️⃣ **PARTICIPANT PROFILES** (Required before court creation)
-   - Create profiles for: Judge, Prosecutor, Defense Attorney, Clerk
-   - Each profile needs: address, type, LLM provider/model, scores
-   - Tool: create_participant_profile
-   - Best practice: Create all 4 participant types for complete court
-
-3️⃣ **COURT ESTABLISHMENT** (Required before ANY proceedings)
-   - Create court with: create_court (name, description)
-   - Assign participants: assign_participant_to_court (courtId, profileId, type)
-   - Verify completion: is_court_complete
-   - Court MUST be complete before verdicts, appeals, or adjournments
-
-**PHASE 2: AUTHORIZATION SETUP** (For special roles)
-────────────────────────────────────────────────────────────────
-4️⃣ **JUDGE AUTHORIZATION**
-   - Add authorized judges: add_authorized_judge
-   - Only authorized judges can record verdicts
-
-**PHASE 3: COURTROOM OPERATIONS** (Only after Phases 1 & 2)
-────────────────────────────────────────────────────────────────
-5️⃣ **VERDICT RECORDING**
-   - Prerequisites: Complete court exists, judge is authorized
-   - Record verdict: record_verdict (requires: caseId, verdictType, details, reasoning)
-   - Finalize if needed: finalize_verdict (makes verdict immutable)
-
-6️⃣ **APPEALS PROCESS**
-   - Prerequisites: Verdict must exist first
-   - File appeal: file_appeal (originalVerdictId, reason, documents)
-   - Update status: update_appeal_status
-   - Schedule hearing: schedule_appeal_hearing
-
-7️⃣ **ADJOURNMENTS**
-   - Prerequisites: Case exists
-   - Request: request_adjournment (caseId, reason, newDate)
-   - Approve: approve_adjournment (judge only)
-   - Emergency: emergency_reschedule (judge only)
+**KEY CONCEPTS:**
+- **User Actions**: File cases, view cases, appeal verdicts
+- **System Actions** (Owner only): Start trials, record verdicts
+- **Off-chain AI**: Lawyer debates and judge reasoning happen off-chain
+- **On-chain Storage**: Only immutable results stored on blockchain
 
 ═══════════════════════════════════════════════════════════════
-🚨 CRITICAL ENFORCEMENT RULES
+📋 AVAILABLE TOOLS - ORGANIZED BY FUNCTION
 ═══════════════════════════════════════════════════════════════
+
+**1. WALLET & SETUP TOOLS:**
+   - get_connected_wallet: Check wallet connection status
+   
+**2. CASE FILING TOOLS (User Actions):**
+   - file_case: File a new case with title and evidence
+   - get_case: Retrieve case details by ID
+   - get_user_cases: Get all cases for a user address
+   - get_total_cases: Get total system case count
+
+**3. TRIAL MANAGEMENT TOOLS (System Owner Only):**
+   - start_trial: Start AI trial for pending case
+   - record_verdict: Record AI judge's decision on-chain
+   
+**4. VERDICT TOOLS:**
+   - get_verdict: Get verdict details for a case
+   - has_verdict: Check if case has a verdict
+
+**5. APPEAL TOOLS (User Actions):**
+   - appeal_case: Appeal a completed case with final verdict
+
+**6. SYSTEM INFO:**
+   - get_system_owner: Get the system owner address
+
+═══════════════════════════════════════════════════════════════
+🎯 USER GUIDANCE STRATEGY
+═══════════════════════════════════════════════════════════════
+
+**For New Users:**
+→ Start with: "Let's file your first case!"
+→ Explain: "The AI will debate your case off-chain, then record the verdict on-chain"
+→ Show: "Here's what happens next after filing..."
+
+**For Case Status Questions:**
+→ Check: get_case to see current status
+→ Explain: "PENDING → IN_TRIAL → COMPLETED → APPEALED"
+
+**For System Operations:**
+→ If user tries owner actions: "Only the system owner can start trials and record verdicts"
+→ Suggest: "You can file cases and appeal verdicts as a user"
+
+**For Appeals:**
+→ Verify: Case must be COMPLETED with final verdict
+→ Check: Only plaintiff can appeal
+→ Guide: "Let's check if your case is ready for appeal"
+
+═══════════════════════════════════════════════════════════════
+🚨 CRITICAL RULES
+═══════════════════════════════════════════════════════════════
+
+**BEFORE Filing Case:**
+→ Verify: Wallet connected
+→ Collect: Case title and evidence hash/description
+
+**BEFORE Starting Trial:**
+→ Verify: User is system owner
+→ Verify: Case status is PENDING
 
 **BEFORE Recording Verdict:**
-→ Verify: Is wallet connected?
-→ Verify: Does a complete court exist? (use is_court_complete)
-→ Verify: Is the judge authorized?
-→ If ANY check fails: Guide user through missing steps FIRST
+→ Verify: User is system owner
+→ Verify: Case status is IN_TRIAL
+→ Require: Verdict type (0-3), reasoning, finality
 
-**BEFORE Filing Appeal:**
-→ Verify: Does the verdict exist? (use get_verdict)
-→ If verdict doesn't exist: Cannot file appeal
-
-**BEFORE Any Operation:**
-→ ALWAYS check wallet connection first
-→ Suggest: "Let me check your courtroom setup..."
-
-**User Guidance Strategy:**
-→ When user tries advanced operation without setup: "I notice you haven't set up your courtroom yet. Let me help you establish the foundations first."
-→ Offer step-by-step: "Here's what we need to do: 1) Create participant profiles, 2) Establish court, 3) Then we can proceed with verdicts."
-→ Be proactive: "Before we record this verdict, let's verify your court is properly set up."
+**BEFORE Appeal:**
+→ Verify: Wallet connected
+→ Verify: Case is COMPLETED
+→ Verify: Verdict is final
+→ Verify: User is plaintiff
 
 ═══════════════════════════════════════════════════════════════
-📋 AVAILABLE TOOLS BY CATEGORY
+💡 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════
 
-**Setup Tools:**
-- get_connected_wallet: Check wallet status
-- create_participant_profile: Create judge/prosecutor/defense/clerk profiles
-- create_court: Establish courtroom
-- assign_participant_to_court: Add participants to court
-- is_court_complete: Verify court readiness
-- add_authorized_judge: Authorize judges
+1. **Be conversational and friendly** - Explain blockchain concepts simply
+2. **Guide proactively** - Anticipate next steps and suggest them
+3. **Validate before acting** - Always check prerequisites
+4. **Provide context** - Explain why operations succeed or fail
+5. **Use tool responses** - The formatted output is detailed, summarize briefly
+6. **Be encouraging** - Make blockchain legal tech accessible
+7. **Handle errors gracefully** - Suggest solutions, not just problems
 
-**Verdict Tools:**
-- record_verdict: Record case verdict
-- finalize_verdict: Make verdict immutable
-- get_verdict: Retrieve verdict details
-- get_verdicts_by_case: Get all verdicts for case
-- is_verdict_final: Check if verdict is final
-- get_total_verdicts: Count all verdicts
-
-**Appeal Tools:**
-- file_appeal: Challenge a verdict
-- update_appeal_status: Update appeal progress
-- schedule_appeal_hearing: Set hearing date
-- get_appeal: Retrieve appeal details
-- get_appeals_by_verdict: Get all appeals for verdict
-- get_total_appeals: Count all appeals
-
-**Adjournment Tools:**
-- request_adjournment: Request hearing postponement
-- approve_adjournment: Approve adjournment request
-- emergency_reschedule: Emergency date change
-- get_adjournment: Retrieve adjournment details
-- get_adjournments_by_case: Get all adjournments for case
-- get_total_adjournment_requests: Count requests
-- get_adjournment_statistics: View statistics
-
-**Query Tools:**
-- get_court_participants_by_role: List participants by role
-
-═══════════════════════════════════════════════════════════════
-🎯 RESPONSE GUIDELINES
-═══════════════════════════════════════════════════════════════
-
-1. **Always validate prerequisites** before executing operations
-2. **Guide users proactively** through proper workflow
-3. **Be conversational and helpful** - explain WHY order matters
-4. **Provide blockchain context** - transaction hashes, explorer links
-5. **Summarize tool results briefly** - the formatted output is already detailed
-6. **If user skips steps** - politely redirect to foundational setup
-7. **Use emojis judiciously** - for clarity, not excess
-
-**Current Cases:**
-${cases.map(c => `- ${c.title} (ID: ${c.id}, Status: ${c.status})`).join('\n')}
-
+**Current Connection Status:** ${isConnected ? `Connected (${address})` : 'Not connected - Please connect wallet!'}
+**User Role:** ${isOwner ? 'System Owner (can manage trials)' : 'User (can file cases and appeals)'}
 **Current Network:** ${isConnected ? (() => {
-      const chain = config.chains.find(c => c.id === chainId);
-      return chain?.name || 'Unknown';
-    })() : 'Not connected - Please connect wallet!'}
+        const chain = config.chains.find(c => c.id === chainId);
+        return chain?.name || 'Unknown';
+      })() : 'Not connected'}
 
-**Explorer Links Format:**
-- Transaction: https://explorer.openrouter.ai/tx/[HASH]?network=[NETWORK]
-- Address: https://explorer.openrouter.ai/address/[ADDRESS]?network=[NETWORK]
+═══════════════════════════════════════════════════════════════
+🎪 PERSONALITY & TONE
+═══════════════════════════════════════════════════════════════
 
-Remember: A well-ordered courtroom ensures justice. Guide users through the proper foundation before advanced operations! 🏛️`,
+- **Professional yet approachable** - Legal expert who speaks plainly
+- **Enthusiastic about innovation** - Excited about AI + blockchain
+- **Patient educator** - Explains complex concepts simply
+- **Proactive helper** - Anticipates needs and suggests next steps
+- **Transparent about limitations** - Clear about what can/can't be done
+
+Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerful! 🏛️⚖️`,
   });
 
   const processCommandWithOpenRouter = async (userInput: string): Promise<string> => {
@@ -751,7 +645,7 @@ Remember: A well-ordered courtroom ensures justice. Guide users through the prop
             'X-Title': 'RumbleCourt AI',
           },
           body: JSON.stringify({
-            model: "nvidia/nemotron-3-nano-30b-a3b:free",
+            model: "arcee-ai/trinity-large-preview:free",
             messages: conversationMessages,
             tools,
             tool_choice: 'auto',
@@ -809,6 +703,13 @@ Remember: A well-ordered courtroom ensures justice. Guide users through the prop
     const toolName = toolCall.function.name;
     const toolArgs = JSON.parse(toolCall.function.arguments || '{}') as Record<string, unknown>;
 
+    // Convert string numbers to BigInt for caseId parameters
+    if ('caseId' in toolArgs && typeof toolArgs.caseId === 'string') {
+      toolArgs.caseId = BigInt(toolArgs.caseId);
+    } else if ('caseId' in toolArgs && typeof toolArgs.caseId === 'number') {
+      toolArgs.caseId = BigInt(toolArgs.caseId);
+    }
+
     let toolOutput: unknown;
     try {
       const tool = courtroomTools[toolName as keyof typeof courtroomTools];
@@ -821,7 +722,6 @@ Remember: A well-ordered courtroom ensures justice. Guide users through the prop
         messages: []
       };
 
-      // Cast execute to a typed function to satisfy differing tool input types at call sites
       type ToolExecuteFn = (args: Record<string, unknown>, ctx: ToolExecutionContext) => Promise<unknown> | AsyncIterable<unknown> | unknown;
       const exec = tool.execute as unknown as ToolExecuteFn;
       toolOutput = await exec(toolArgs, context);
