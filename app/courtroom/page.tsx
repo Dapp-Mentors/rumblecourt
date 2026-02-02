@@ -65,7 +65,7 @@ const CompactHeader = ({ onToggleTheaterMode, isTheaterMode }: { onToggleTheater
   ];
 
   return (
-    <div className="flex-shrink-0 space-y-3">
+    <div className="flex-shrink-0 space-y-3 mt-5">
       {/* Compact Title Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -162,27 +162,27 @@ Let's begin your blockchain legal journey!`,
   // Simulation logic with real LLM agents
   const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
     setIsSimulatingState(true);
-    const debateHistory: Array<{agent: string, message: string}> = [];
+    const debateHistory: Array<{ agent: string, message: string }> = [];
 
     // Import agent library dynamically to avoid circular dependencies
-    const { 
-      AGENT_PROFILES, 
-      DEBATE_STRUCTURE, 
-      generateAgentPrompt, 
-      callLLMAgent, 
-      formatDebateHistory 
+    const {
+      AGENT_PROFILES,
+      DEBATE_STRUCTURE,
+      generateAgentPrompt,
+      callLLMAgent,
+      formatDebateHistory
     } = await import('../lib/llm-agents');
 
     // Courtroom opening
     const judgeProfile = AGENT_PROFILES['judge'];
     const openingPrompt = generateAgentPrompt(
-      judgeProfile, 
-      caseTitle, 
-      evidenceHash, 
+      judgeProfile,
+      caseTitle,
+      evidenceHash,
       debateHistory
     );
     const openingMessage = await callLLMAgent('judge', openingPrompt, judgeProfile.systemPrompt);
-    
+
     addMessage({
       id: `trial-${Date.now()}-opening`,
       role: 'judge',
@@ -195,23 +195,23 @@ ${openingMessage}`,
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     });
-    debateHistory.push({agent: 'judge', message: openingMessage});
+    debateHistory.push({ agent: 'judge', message: openingMessage });
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Main debate
     for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) { // Skip judge opening, deliberation, and verdict
       const turn = DEBATE_STRUCTURE[i];
       const profile = AGENT_PROFILES[turn.agent];
-      
+
       const prompt = generateAgentPrompt(
         profile,
         caseTitle,
         evidenceHash,
         debateHistory
       );
-      
+
       const response = await callLLMAgent(turn.agent, prompt, profile.systemPrompt);
-      
+
       addMessage({
         id: `trial-${Date.now()}-${turn.agent}-${i}`,
         role: turn.agent,
@@ -219,9 +219,9 @@ ${openingMessage}`,
         timestamp: new Date(),
         timestampString: new Date().toLocaleTimeString()
       });
-      
-      debateHistory.push({agent: turn.agent, message: response});
-      
+
+      debateHistory.push({ agent: turn.agent, message: response });
+
       // Add turn delay for realistic pacing
       await new Promise(resolve => setTimeout(resolve, 2500 + Math.random() * 1500));
     }
@@ -234,7 +234,7 @@ ${openingMessage}`,
       debateHistory
     );
     const deliberationMessage = await callLLMAgent('judge', deliberationPrompt, judgeProfile.systemPrompt);
-    
+
     addMessage({
       id: `trial-${Date.now()}-judge-deliberation`,
       role: 'judge',
@@ -242,7 +242,7 @@ ${openingMessage}`,
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     });
-    debateHistory.push({agent: 'judge', message: deliberationMessage});
+    debateHistory.push({ agent: 'judge', message: deliberationMessage });
     await new Promise(resolve => setTimeout(resolve, 4000));
 
     // Verdict
@@ -257,9 +257,9 @@ Your verdict should include:
 4. Legal reasoning based on the case facts
 
 Make sure your verdict is impartial and based solely on the evidence and arguments presented during the trial.`;
-    
+
     const verdictMessage = await callLLMAgent('judge', verdictPrompt, judgeProfile.systemPrompt);
-    
+
     addMessage({
       id: `trial-${Date.now()}-verdict`,
       role: 'judge',
@@ -267,7 +267,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     });
-    debateHistory.push({agent: 'judge', message: verdictMessage});
+    debateHistory.push({ agent: 'judge', message: verdictMessage });
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Closing
@@ -278,7 +278,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       debateHistory
     );
     const closingMessage = await callLLMAgent('judge', closingPrompt, judgeProfile.systemPrompt);
-    
+
     addMessage({
       id: `trial-${Date.now()}-closing`,
       role: 'judge',
@@ -286,7 +286,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     });
-    debateHistory.push({agent: 'judge', message: closingMessage});
+    debateHistory.push({ agent: 'judge', message: closingMessage });
 
     setIsSimulatingState(false);
   };
@@ -341,7 +341,11 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
   const setCurrentCase = (caseId: string | null): void => {
     if (caseId) {
-      const selected = cases.find(c => c.id === caseId);
+      // Cases have both an 'id' field (string) and 'caseId' field (bigint)
+      // Try matching against both for flexibility
+      const selected = cases.find(c =>
+        c.id === caseId || c.caseId.toString() === caseId
+      );
       setCurrentCaseState(selected || null);
     } else {
       setCurrentCaseState(null);
@@ -887,6 +891,29 @@ Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerf
         }
         toolOutput = str;
       }
+
+      // Reload cases after operations that modify case state
+      const caseModifyingTools = ['file_case', 'start_trial', 'record_verdict', 'appeal_case'];
+      if (caseModifyingTools.includes(toolName) && isConnected && address) {
+        // Small delay to ensure blockchain state is updated
+        setTimeout(async () => {
+          try {
+            const userCasesTool = courtroomTools.get_user_cases;
+            if (userCasesTool && typeof userCasesTool.execute === 'function') {
+              const userCases = await userCasesTool.execute(
+                { userAddress: address },
+                { toolCallId: 'reload-cases', messages: [] }
+              );
+              if (userCases && typeof userCases === 'object' && 'cases' in userCases) {
+                const casesArray = userCases.cases as Case[];
+                setCases(casesArray);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to reload cases after operation:', error);
+          }
+        }, 1500);
+      }
     } catch (error) {
       console.error(`Tool execution error for ${toolName}:`, error);
       toolOutput = { error: (error as Error).message };
@@ -897,11 +924,11 @@ Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerf
     const toolContent = typeof toolOutput === 'string'
       ? toolOutput
       : JSON.stringify(toolOutput, (key, val) => {
-          if (typeof val === 'bigint') {
-            return val.toString();
-          }
-          return val;
-        }, 2);
+        if (typeof val === 'bigint') {
+          return val.toString();
+        }
+        return val;
+      }, 2);
 
     conversationMessages.push({
       role: 'tool',
