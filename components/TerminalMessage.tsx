@@ -16,6 +16,12 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
         return <Sparkles className="w-5 h-5 text-purple-400" />;
       case 'system':
         return <MessageSquare className="w-5 h-5 text-slate-400" />;
+      case 'prosecution':
+        return <Terminal className="w-5 h-5 text-red-400" />;
+      case 'defense':
+        return <Terminal className="w-5 h-5 text-blue-400" />;
+      case 'judge':
+        return <Terminal className="w-5 h-5 text-yellow-400" />;
       default:
         return <MessageSquare className="w-5 h-5 text-slate-400" />;
     }
@@ -29,6 +35,12 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
         return 'border-purple-500/30 bg-purple-500/5';
       case 'system':
         return 'border-slate-500/50 bg-slate-500/10';
+      case 'prosecution':
+        return 'border-red-500/30 bg-red-500/5';
+      case 'defense':
+        return 'border-blue-500/30 bg-blue-500/5';
+      case 'judge':
+        return 'border-yellow-500/30 bg-yellow-500/5';
       default:
         return 'border-slate-500/50 bg-slate-500/10';
     }
@@ -42,6 +54,12 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
         return 'RumbleCourt AI';
       case 'system':
         return 'Court System';
+      case 'prosecution':
+        return 'Prosecution Lawyer';
+      case 'defense':
+        return 'Defense Lawyer';
+      case 'judge':
+        return 'AI Judge';
       default:
         return 'Unknown';
     }
@@ -55,6 +73,12 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
         return 'border-purple-500/50';
       case 'system':
         return 'border-slate-500/50';
+      case 'prosecution':
+        return 'border-red-500/50';
+      case 'defense':
+        return 'border-blue-500/50';
+      case 'judge':
+        return 'border-yellow-500/50';
       default:
         return 'border-slate-500/50';
     }

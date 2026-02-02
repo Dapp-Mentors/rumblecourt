@@ -25,7 +25,7 @@ interface Case {
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'prosecution' | 'defense' | 'judge';
   content: string;
   timestamp: Date;
   timestampString: string;
@@ -86,6 +86,7 @@ interface CourtroomContextType {
   messages: ChatMessage[];
   isProcessing: boolean;
   selectedTool: string | null;
+  isSimulating: boolean;
 
   // MCP Tools
   courtroomTools: typeof rumbleCourtMcpTools;
@@ -97,6 +98,7 @@ interface CourtroomContextType {
   setIsProcessing: (processing: boolean) => void;
   setSelectedTool: (tool: string | null) => void;
   processCommand: (command: string) => Promise<void>;
+  simulateTrial: (caseTitle: string, evidenceHash: string) => Promise<void>;
 
   // Tool execution helpers
   executeTool: (toolName: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -155,6 +157,139 @@ Let's begin your blockchain legal journey!`,
   const [isProcessing, setIsProcessingState] = useState(false);
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isSimulating, setIsSimulatingState] = useState(false);
+
+  // Simulation logic with real LLM agents
+  const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
+    setIsSimulatingState(true);
+    const debateHistory: Array<{agent: string, message: string}> = [];
+
+    // Import agent library dynamically to avoid circular dependencies
+    const { 
+      AGENT_PROFILES, 
+      DEBATE_STRUCTURE, 
+      generateAgentPrompt, 
+      callLLMAgent, 
+      formatDebateHistory 
+    } = await import('../lib/llm-agents');
+
+    // Courtroom opening
+    const judgeProfile = AGENT_PROFILES['judge'];
+    const openingPrompt = generateAgentPrompt(
+      judgeProfile, 
+      caseTitle, 
+      evidenceHash, 
+      debateHistory
+    );
+    const openingMessage = await callLLMAgent('judge', openingPrompt, judgeProfile.systemPrompt);
+    
+    addMessage({
+      id: `trial-${Date.now()}-opening`,
+      role: 'judge',
+      content: `📢 **COURTROOM SESSION BEGINNING**
+
+Case: ${caseTitle}
+Evidence Hash: ${evidenceHash}
+
+${openingMessage}`,
+      timestamp: new Date(),
+      timestampString: new Date().toLocaleTimeString()
+    });
+    debateHistory.push({agent: 'judge', message: openingMessage});
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Main debate
+    for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) { // Skip judge opening, deliberation, and verdict
+      const turn = DEBATE_STRUCTURE[i];
+      const profile = AGENT_PROFILES[turn.agent];
+      
+      const prompt = generateAgentPrompt(
+        profile,
+        caseTitle,
+        evidenceHash,
+        debateHistory
+      );
+      
+      const response = await callLLMAgent(turn.agent, prompt, profile.systemPrompt);
+      
+      addMessage({
+        id: `trial-${Date.now()}-${turn.agent}-${i}`,
+        role: turn.agent,
+        content: `${response}`,
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+      
+      debateHistory.push({agent: turn.agent, message: response});
+      
+      // Add turn delay for realistic pacing
+      await new Promise(resolve => setTimeout(resolve, 2500 + Math.random() * 1500));
+    }
+
+    // Judge deliberation
+    const deliberationPrompt = generateAgentPrompt(
+      judgeProfile,
+      caseTitle,
+      evidenceHash,
+      debateHistory
+    );
+    const deliberationMessage = await callLLMAgent('judge', deliberationPrompt, judgeProfile.systemPrompt);
+    
+    addMessage({
+      id: `trial-${Date.now()}-judge-deliberation`,
+      role: 'judge',
+      content: `**DELIBERATION**\n\n${deliberationMessage}`,
+      timestamp: new Date(),
+      timestampString: new Date().toLocaleTimeString()
+    });
+    debateHistory.push({agent: 'judge', message: deliberationMessage});
+    await new Promise(resolve => setTimeout(resolve, 4000));
+
+    // Verdict
+    const verdictPrompt = `Please deliver a final verdict based on the complete trial proceedings:
+
+${formatDebateHistory(debateHistory)}
+
+Your verdict should include:
+1. A clear verdict: GUILTY or NOT GUILTY
+2. Detailed reasoning explaining the decision
+3. Analysis of the key evidence presented
+4. Legal reasoning based on the case facts
+
+Make sure your verdict is impartial and based solely on the evidence and arguments presented during the trial.`;
+    
+    const verdictMessage = await callLLMAgent('judge', verdictPrompt, judgeProfile.systemPrompt);
+    
+    addMessage({
+      id: `trial-${Date.now()}-verdict`,
+      role: 'judge',
+      content: `⚖️ **VERDICT**\n\n${verdictMessage}`,
+      timestamp: new Date(),
+      timestampString: new Date().toLocaleTimeString()
+    });
+    debateHistory.push({agent: 'judge', message: verdictMessage});
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Closing
+    const closingPrompt = generateAgentPrompt(
+      judgeProfile,
+      caseTitle,
+      evidenceHash,
+      debateHistory
+    );
+    const closingMessage = await callLLMAgent('judge', closingPrompt, judgeProfile.systemPrompt);
+    
+    addMessage({
+      id: `trial-${Date.now()}-closing`,
+      role: 'judge',
+      content: `📢 **COURTROOM SESSION CONCLUDED**\n\n${closingMessage}`,
+      timestamp: new Date(),
+      timestampString: new Date().toLocaleTimeString()
+    });
+    debateHistory.push({agent: 'judge', message: closingMessage});
+
+    setIsSimulatingState(false);
+  };
 
   // Update wallet context and check owner status when wallet changes
   useEffect(() => {
@@ -412,7 +547,14 @@ Let's begin your blockchain legal journey!`,
       remainingKeys.forEach(key => {
         const value = outputData[key];
         if (typeof value === 'object' && value !== null) {
-          lines.push(`- **${key}**: \`${JSON.stringify(value)}\``);
+          // Handle BigInt serialization
+          const serializedValue = JSON.stringify(value, (key, val) => {
+            if (typeof val === 'bigint') {
+              return val.toString();
+            }
+            return val;
+          });
+          lines.push(`- **${key}**: \`${serializedValue}\``);
         } else {
           lines.push(`- **${key}**: ${value}`);
         }
@@ -754,7 +896,12 @@ Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerf
 
     const toolContent = typeof toolOutput === 'string'
       ? toolOutput
-      : JSON.stringify(toolOutput, null, 2);
+      : JSON.stringify(toolOutput, (key, val) => {
+          if (typeof val === 'bigint') {
+            return val.toString();
+          }
+          return val;
+        }, 2);
 
     conversationMessages.push({
       role: 'tool',
@@ -772,6 +919,7 @@ Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerf
     messages,
     isProcessing,
     selectedTool,
+    isSimulating,
 
     // MCP Tools
     courtroomTools,
@@ -783,6 +931,7 @@ Remember: RumbleCourt makes blockchain legal tech simple, accessible, and powerf
     setIsProcessing,
     setSelectedTool,
     processCommand,
+    simulateTrial,
 
     // Tool execution helpers
     executeTool,

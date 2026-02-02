@@ -54,7 +54,7 @@ export interface Evidence {
 // Chat message for UI
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'prosecution' | 'defense' | 'judge'
   content: string
   timestamp: Date
   timestampString: string

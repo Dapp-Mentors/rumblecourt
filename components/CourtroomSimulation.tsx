@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Terminal, Loader2 } from 'lucide-react';
+import { Send, Terminal, Loader2, Gavel, Brain } from 'lucide-react';
 import { useCourtroom } from '../context/CourtroomContext';
 import { useWallet } from '../context/WalletContext';
 import TerminalMessage from './TerminalMessage';
@@ -8,12 +8,16 @@ const CourtroomSimulation: React.FC = () => {
   const {
     messages,
     isProcessing,
-    processCommand
+    processCommand,
+    isSimulating,
+    simulateTrial
   } = useCourtroom();
 
   const { isConnected } = useWallet();
 
   const [inputValue, setInputValue] = useState('');
+  const [caseTitle] = useState('Contract Dispute');
+  const [evidenceHash] = useState('QmEvidenceHash123');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,6 +35,11 @@ const CourtroomSimulation: React.FC = () => {
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleSimulate = async (): Promise<void> => {
+    if (!caseTitle.trim() || !evidenceHash.trim()) return;
+    await simulateTrial(caseTitle, evidenceHash);
   };
 
   return (
@@ -80,8 +89,42 @@ const CourtroomSimulation: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Simulation Controls */}
+      {isSimulating && (
+        <div className="px-6 py-3 border-t border-slate-700/50 bg-slate-800/30 flex-shrink-0">
+          <div className="flex items-center gap-3 text-slate-400">
+            <Brain className="w-4 h-4 text-purple-400 animate-pulse" />
+            <span className="text-sm font-medium">AI Courtroom Simulation in Progress...</span>
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-800/30 flex-shrink-0">
+        {/* Simulation Trigger */}
+        <div className="mb-3">
+          <button
+            onClick={handleSimulate}
+            disabled={isSimulating || isProcessing}
+            className="
+              group relative px-4 py-2 mr-2
+              bg-gradient-to-r from-purple-500 to-pink-600
+              rounded-lg font-medium text-white overflow-hidden
+              transition-all hover:scale-105 hover:shadow-lg hover:shadow-purple-500/30
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+            "
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="relative flex items-center gap-2">
+              <Gavel className="w-4 h-4" />
+              Simulate Courtroom
+            </span>
+          </button>
+          <span className="text-xs text-slate-500">
+            (Watch AI lawyers debate and get a verdict)
+          </span>
+        </div>
+
         <div className="flex gap-3">
           <input
             type="text"
@@ -90,8 +133,8 @@ const CourtroomSimulation: React.FC = () => {
             onKeyPress={handleKeyPress}
             placeholder={
               isConnected
-                ? "= Type your legal request here (e.g., 'file a case', 'view my cases', 'how does this work?')..."
-                : "= Connect wallet to start using RumbleCourt..."
+                ? "Type your legal request here (e.g., 'file a case', 'view my cases', 'how does this work?')..."
+                : "Connect wallet to start using RumbleCourt..."
             }
             disabled={isProcessing || !isConnected}
             className="
