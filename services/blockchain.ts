@@ -93,11 +93,13 @@ export const getContractWithSigner = async (): Promise<ethers.Contract> => {
  */
 const reportError = (error: unknown): void => {
   console.error('Blockchain Service Error:', error)
-  if (error instanceof Error && error.message) {
+  if (error instanceof Error) {
     console.error('Error message:', error.message)
-  }
-  if (typeof error === 'object' && error !== null && 'reason' in error) {
-    console.error('Error reason:', (error as { reason: string }).reason)
+    console.error('Error stack:', error.stack)
+  } else if (typeof error === 'object' && error !== null) {
+    console.error('Error object:', JSON.stringify(error, null, 2))
+  } else {
+    console.error('Error value:', error)
   }
 }
 
@@ -114,6 +116,16 @@ export const fileCase = async (
 ): Promise<ethers.TransactionResponse> => {
   try {
     const contract = await getContractWithSigner()
+    
+    // Debug contract instance
+    console.log('Contract instance:', contract)
+    console.log('Contract methods:', Object.keys(contract))
+    console.log('fileCase method:', typeof contract.fileCase, contract.fileCase)
+    
+    if (!contract.fileCase) {
+      throw new Error('Contract does not have a fileCase method')
+    }
+    
     const tx = await contract.fileCase(caseTitle, evidenceHash)
 
     // Ensure tx is a proper TransactionResponse
