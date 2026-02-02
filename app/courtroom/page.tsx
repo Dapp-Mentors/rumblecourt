@@ -57,10 +57,10 @@ const CourtroomHeader = () => {
   const { processCommand, isProcessing } = useCourtroom();
 
   const quickCommands = [
-    { label: 'File Case', command: 'File a new case for contract breach with evidence of signed agreement' },
-    { label: 'My Cases', command: 'Show me all my filed cases' },
-    { label: 'Check Status', command: 'Check the status of case 1' },
-    { label: 'Get Verdict', command: 'Get the verdict for case 1' },
+    { label: '📝 File My First Case', command: 'File a new case for breach of contract with evidence of signed agreement' },
+    { label: '📋 View My Cases', command: 'Show me all the cases I have filed' },
+    { label: '⚖️ How It Works', command: 'Explain how RumbleCourt works and what I can do' },
+    { label: '🏛️ System Demo', command: 'Show me an example of a complete case from filing to verdict' },
   ];
 
   return (

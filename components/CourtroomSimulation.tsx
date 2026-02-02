@@ -90,8 +90,8 @@ const CourtroomSimulation: React.FC = () => {
             onKeyPress={handleKeyPress}
             placeholder={
               isConnected
-                ? "Enter command (e.g., 'file a new case', 'check my cases')..."
-                : "Connect wallet to start using RumbleCourt..."
+                ? "= Type your legal request here (e.g., 'file a case', 'view my cases', 'how does this work?')..."
+                : "= Connect wallet to start using RumbleCourt..."
             }
             disabled={isProcessing || !isConnected}
             className="

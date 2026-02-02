@@ -127,15 +127,27 @@ export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }
     {
       id: 'welcome',
       role: 'system',
-      content: `Welcome to RumbleCourt AI - Your Minimal Blockchain Courtroom! 🏛️⚖️
+      content: `👋 Welcome to RumbleCourt AI - Your Minimal Blockchain Courtroom! 🏛️⚖️
 
-I'm your AI legal companion, powered by the streamlined RumbleCourt smart contract.
+I'm your friendly AI legal assistant, here to guide you through the complete courtroom experience powered by blockchain technology.
 
-**🎯 The RumbleCourt Flow:**
-File Case → System Starts Trial → AI Lawyers Debate (off-chain) → 
-AI Judge Decides (off-chain) → Verdict Recorded (on-chain) → Appeal if Needed
+**🚀 Get Started in Seconds:**
 
-Let's get started with your blockchain legal journey!`,
+Here's how you can begin using RumbleCourt right away:
+
+1. **📝 File Your First Case** - Click the "File My First Case" button to start
+2. **📋 View Your Cases** - Check existing cases in the sidebar or use the quick command
+3. **⚖️ Learn How It Works** - Get a complete explanation of the RumbleCourt process
+
+**🎯 What You Can Do:**
+• File legal cases with evidence
+• Track case status in real-time
+• View detailed verdicts and reasoning
+• Appeal decisions if you disagree
+
+**💡 Quick Tip:** The purple sidebar on the right shows your active cases - click on any case to view details!
+
+Let's begin your blockchain legal journey!`,
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     }
