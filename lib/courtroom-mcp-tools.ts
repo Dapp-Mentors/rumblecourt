@@ -212,12 +212,26 @@ export const rumbleCourtMcpTools = {
 
       try {
         const caseIds = await getUserCases(address)
+        const cases = []
+
+        for (const caseId of caseIds) {
+          const caseData = await getCase(caseId)
+          cases.push({
+            id: caseId.toString(),
+            caseId,
+            caseTitle: caseData.caseTitle,
+            plaintiff: caseData.plaintiff,
+            evidenceHash: caseData.evidenceHash,
+            filedAt: caseData.filedAt,
+            status: caseData.status,
+          })
+        }
 
         return {
           success: true,
-          count: caseIds.length,
-          caseIds: caseIds.map((id) => id.toString()),
-          message: `Found ${caseIds.length} case(s) filed by ${address}`,
+          count: cases.length,
+          cases,
+          message: `Found ${cases.length} case(s) filed by ${address}`,
         }
       } catch (error) {
         return formatError(error, 'Failed to get user cases')
