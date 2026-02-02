@@ -10,15 +10,40 @@ const CourtroomSimulation: React.FC = () => {
     isProcessing,
     processCommand,
     isSimulating,
-    simulateTrial
+    simulateTrial,
+    currentCase,
+    cases
   } = useCourtroom();
 
   const { isConnected } = useWallet();
 
   const [inputValue, setInputValue] = useState('');
-  const [caseTitle] = useState('Contract Dispute');
-  const [evidenceHash] = useState('QmEvidenceHash123');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Determine which case to simulate
+  const getCaseForSimulation = () => {
+    // Priority 1: Use currently selected case
+    if (currentCase) {
+      return {
+        caseTitle: currentCase.caseTitle,
+        evidenceHash: currentCase.evidenceHash
+      };
+    }
+
+    // Priority 2: Use first case from user's cases
+    if (cases.length > 0) {
+      return {
+        caseTitle: cases[0].caseTitle,
+        evidenceHash: cases[0].evidenceHash
+      };
+    }
+
+    // Fallback to default if no cases available
+    return {
+      caseTitle: 'Contract Dispute',
+      evidenceHash: 'QmEvidenceHash123'
+    };
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,8 +63,11 @@ const CourtroomSimulation: React.FC = () => {
   };
 
   const handleSimulate = async (): Promise<void> => {
-    if (!caseTitle.trim() || !evidenceHash.trim()) return;
-    await simulateTrial(caseTitle, evidenceHash);
+    const caseToSimulate = getCaseForSimulation();
+    
+    if (!caseToSimulate.caseTitle.trim() || !caseToSimulate.evidenceHash.trim()) return;
+    
+    await simulateTrial(caseToSimulate.caseTitle, caseToSimulate.evidenceHash);
   };
 
   return (
