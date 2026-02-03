@@ -196,7 +196,7 @@ ${openingMessage}`,
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: openingMessage });
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
 
     // Main debate
     for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) { // Skip judge opening, deliberation, and verdict
@@ -208,7 +208,7 @@ ${openingMessage}`,
         caseTitle,
         evidenceHash,
         debateHistory
-      );
+      ) + "\n\n**CRITICAL: Keep your argument CONCISE - maximum 150 words. Be direct and focused.**";
 
       const response = await callLLMAgent(turn.agent, prompt, profile.systemPrompt);
 
@@ -222,8 +222,8 @@ ${openingMessage}`,
 
       debateHistory.push({ agent: turn.agent, message: response });
 
-      // Add turn delay for realistic pacing
-      await new Promise(resolve => setTimeout(resolve, 2500 + Math.random() * 1500));
+      // Add turn delay for realistic pacing - Reduced from 2500-4000ms to 1000-2000ms
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
     }
 
     // Judge deliberation
@@ -232,7 +232,7 @@ ${openingMessage}`,
       caseTitle,
       evidenceHash,
       debateHistory
-    );
+    ) + "\n\n**CRITICAL: Keep your deliberation CONCISE - maximum 150 words. Focus on key points only.**";
     const deliberationMessage = await callLLMAgent('judge', deliberationPrompt, judgeProfile.systemPrompt);
 
     addMessage({
@@ -243,7 +243,7 @@ ${openingMessage}`,
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: deliberationMessage });
-    await new Promise(resolve => setTimeout(resolve, 4000));
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Reduced from 4000
 
     // Verdict
     const verdictPrompt = `Please deliver a final verdict based on the complete trial proceedings:
@@ -252,9 +252,11 @@ ${formatDebateHistory(debateHistory)}
 
 Your verdict should include:
 1. A clear verdict: GUILTY or NOT GUILTY
-2. Detailed reasoning explaining the decision
-3. Analysis of the key evidence presented
-4. Legal reasoning based on the case facts
+2. Brief reasoning (maximum 200 words)
+3. Key evidence analysis
+4. Legal reasoning
+
+**CRITICAL: Be CONCISE and DIRECT. Maximum 200 words total.**
 
 Make sure your verdict is impartial and based solely on the evidence and arguments presented during the trial.`;
 
@@ -268,7 +270,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: verdictMessage });
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
 
     // Closing
     const closingPrompt = generateAgentPrompt(
@@ -276,7 +278,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       caseTitle,
       evidenceHash,
       debateHistory
-    );
+    ) + "\n\n**CRITICAL: Keep your closing statement BRIEF - maximum 100 words.**";
     const closingMessage = await callLLMAgent('judge', closingPrompt, judgeProfile.systemPrompt);
 
     addMessage({
@@ -287,6 +289,82 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: closingMessage });
+
+    // Extract verdict type from the verdict message
+    const verdictType = verdictMessage.toUpperCase().includes('GUILTY') && !verdictMessage.toUpperCase().includes('NOT GUILTY') ? 0 : 1; // 0 = GUILTY, 1 = NOT_GUILTY
+
+    // Record verdict on blockchain automatically (only if user is owner)
+    if (isOwner && currentCase) {
+      try {
+        addMessage({
+          id: `trial-${Date.now()}-recording`,
+          role: 'system',
+          content: '⚙️ **RECORDING VERDICT ON BLOCKCHAIN...**\n\nPlease wait while we save the verdict permanently on the blockchain.',
+          timestamp: new Date(),
+          timestampString: new Date().toLocaleTimeString()
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Call the record_verdict tool
+        const recordVerdictTool = courtroomTools.record_verdict;
+        if (recordVerdictTool && typeof recordVerdictTool.execute === 'function') {
+          await recordVerdictTool.execute(
+            {
+              caseId: currentCase.caseId,
+              verdictType: verdictType,
+              reasoning: verdictMessage.substring(0, 500), // Truncate to reasonable length
+              isFinal: true
+            },
+            { toolCallId: 'auto-verdict-recording', messages: [] }
+          );
+
+          addMessage({
+            id: `trial-${Date.now()}-recorded`,
+            role: 'system',
+            content: `✅ **VERDICT RECORDED ON BLOCKCHAIN**\n\nThe verdict has been permanently recorded on the blockchain and is now immutable.\n\n**Case ID:** ${currentCase.caseId}\n**Verdict:** ${verdictType === 0 ? 'GUILTY' : 'NOT GUILTY'}\n**Status:** COMPLETED`,
+            timestamp: new Date(),
+            timestampString: new Date().toLocaleTimeString()
+          });
+
+          // Reload cases to show updated status
+          setTimeout(async () => {
+            try {
+              const userCasesTool = courtroomTools.get_user_cases;
+              if (userCasesTool && typeof userCasesTool.execute === 'function' && address) {
+                const userCases = await userCasesTool.execute(
+                  { userAddress: address },
+                  { toolCallId: 'reload-after-verdict', messages: [] }
+                );
+                if (userCases && typeof userCases === 'object' && 'cases' in userCases) {
+                  const casesArray = userCases.cases as Case[];
+                  setCases(casesArray);
+                }
+              }
+            } catch (error) {
+              console.error('Failed to reload cases after verdict:', error);
+            }
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('Failed to record verdict on blockchain:', error);
+        addMessage({
+          id: `trial-${Date.now()}-error`,
+          role: 'system',
+          content: `⚠️ **VERDICT RECORDING FAILED**\n\nThe verdict could not be recorded on the blockchain. Error: ${(error as Error).message}\n\nYou can manually record the verdict using the record_verdict tool.`,
+          timestamp: new Date(),
+          timestampString: new Date().toLocaleTimeString()
+        });
+      }
+    } else if (!isOwner) {
+      addMessage({
+        id: `trial-${Date.now()}-no-record`,
+        role: 'system',
+        content: '⚠️ **VERDICT NOT RECORDED**\n\nOnly the system owner can record verdicts on the blockchain. The trial has concluded, but the verdict has not been saved on-chain.',
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+    }
 
     setIsSimulatingState(false);
   };
@@ -1030,4 +1108,3 @@ When user says "use these scriptures" or "use this information":
 };
 
 export default CourtroomProvider;
-
