@@ -164,6 +164,73 @@ Let's begin your blockchain legal journey!`,
     setIsSimulatingState(true);
     const debateHistory: Array<{ agent: string, message: string }> = [];
 
+    // Validate that we have a current case selected
+    if (!currentCase) {
+      addMessage({
+        id: `trial-${Date.now()}-no-case`,
+        role: 'system',
+        content: '⚠️ **NO CASE SELECTED**\n\nPlease select a case before starting a trial simulation.',
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+      setIsSimulatingState(false);
+      return;
+    }
+
+    // CRITICAL: Start the trial on-chain first (changes status from PENDING to IN_TRIAL)
+    if (isOwner && currentCase) {
+      try {
+        addMessage({
+          id: `trial-${Date.now()}-starting`,
+          role: 'system',
+          content: '⚙️ **STARTING TRIAL ON BLOCKCHAIN...**\n\nUpdating case status to IN_TRIAL before the courtroom proceedings begin.',
+          timestamp: new Date(),
+          timestampString: new Date().toLocaleTimeString()
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Call start_trial to update blockchain status
+        const startTrialTool = courtroomTools.start_trial;
+        if (startTrialTool && typeof startTrialTool.execute === 'function') {
+          await startTrialTool.execute(
+            { caseId: currentCase.caseId },
+            { toolCallId: 'auto-start-trial', messages: [] }
+          );
+
+          addMessage({
+            id: `trial-${Date.now()}-started`,
+            role: 'system',
+            content: '✅ **TRIAL STARTED ON BLOCKCHAIN**\n\nCase status updated to IN_TRIAL. The courtroom proceedings will now begin.',
+            timestamp: new Date(),
+            timestampString: new Date().toLocaleTimeString()
+          });
+
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.error('Failed to start trial on blockchain:', error);
+        addMessage({
+          id: `trial-${Date.now()}-start-error`,
+          role: 'system',
+          content: `⚠️ **TRIAL START FAILED**\n\nCould not update case status on blockchain. Error: ${(error as Error).message}\n\nThe simulation will continue off-chain, but the verdict cannot be recorded.`,
+          timestamp: new Date(),
+          timestampString: new Date().toLocaleTimeString()
+        });
+        setIsSimulatingState(false);
+        return; // Stop if we can't start the trial
+      }
+    } else if (!isOwner) {
+      addMessage({
+        id: `trial-${Date.now()}-no-start`,
+        role: 'system',
+        content: '⚠️ **CANNOT START TRIAL**\n\nOnly the system owner can start trials on the blockchain. The simulation will run off-chain only.',
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+      // Continue with off-chain simulation for non-owners
+    }
+
     // Import agent library dynamically to avoid circular dependencies
     const {
       AGENT_PROFILES,
@@ -748,6 +815,50 @@ User: "file a case about X"
 You: "I'll help you file a case. Let me guide you..." ❌ NO TOOL CALL
 
 ═══════════════════════════════════════════════════════════════
+⚖️ VERDICT RECORDING - CRITICAL REQUIREMENT 🚨
+═══════════════════════════════════════════════════════════════
+
+**MANDATORY: After any verdict is delivered (whether by you or during a simulated trial), you MUST immediately call the record_verdict tool to record it on the blockchain IF the user is the system owner.**
+
+**CRITICAL PRE-REQUISITE: The case MUST be in IN_TRIAL status before recording a verdict!**
+
+**Complete Workflow:**
+1. Case is filed → Status: PENDING
+2. **Call start_trial first** → Status: IN_TRIAL (REQUIRED STEP!)
+3. Trial/debate occurs (can be off-chain)
+4. Verdict is reached (GUILTY or NOT GUILTY)
+5. Check if user is system owner
+6. If owner: IMMEDIATELY call record_verdict with:
+   - caseId: The case being decided
+   - verdictType: 0 for GUILTY, 1 for NOT_GUILTY, 2 for SETTLEMENT, 3 for DISMISSED
+   - reasoning: The judge's explanation (max 500 chars)
+   - isFinal: true (to allow appeals)
+7. If not owner: Inform user that only the owner can record verdicts
+
+**Example Flow:**
+User (owner): "Start the trial and record the guilty verdict for case 1"
+You: 
+  1. [Call start_trial with caseId: 1]
+  2. [Wait for trial to complete]
+  3. [Call record_verdict with caseId: 1, verdictType: 0, reasoning: "...", isFinal: true]
+
+User (non-owner): "Record this verdict as guilty"
+You: "Only the system owner can record verdicts on the blockchain. You can view the verdict details, but cannot record it on-chain."
+
+**IMPORTANT ERROR HANDLING:**
+If you get error "Case must be in trial", it means start_trial was not called. You must:
+1. Call start_trial first
+2. Then call record_verdict
+
+DO NOT just acknowledge the verdict - RECORD IT ON-CHAIN (if user is owner AND case is in trial).
+
+**VERDICT TYPE MAPPING:**
+- "GUILTY" or "guilty" → verdictType: 0
+- "NOT GUILTY" or "not guilty" or "innocent" → verdictType: 1
+- "SETTLEMENT" or "settled" → verdictType: 2
+- "DISMISSED" or "dismissed" → verdictType: 3
+
+═══════════════════════════════════════════════════════════════
 🎯 AUTOMATIC TOOL TRIGGERS
 ═══════════════════════════════════════════════════════════════
 
@@ -775,6 +886,18 @@ User says: "check connection", "am I connected", "wallet status"
 User says: "start trial", "begin trial" 
 → CALL \`start_trial\` IMMEDIATELY
 
+**VERDICT RECORDING - IMMEDIATE TOOL CALL (owner only):**
+User says: "verdict is", "judge ruled", "found guilty", "found not guilty", "record verdict", "save verdict"
+→ Extract verdict details from context
+→ Verify user is owner
+→ CALL \`record_verdict\` IMMEDIATELY with appropriate verdictType
+
+Examples:
+- "found guilty" → verdictType: 0
+- "not guilty" → verdictType: 1
+- "reached a settlement" → verdictType: 2
+- "case dismissed" → verdictType: 3
+
 **APPEALS - IMMEDIATE TOOL CALL (after verification):**
 User says: "appeal", "file appeal", "I want to appeal"
 → CALL \`appeal_case\` IMMEDIATELY
@@ -788,12 +911,12 @@ User says: "appeal", "file appeal", "I want to appeal"
 2. System starts trial (owner only)
 3. AI lawyers debate (off-chain)
 4. AI judge decides (off-chain)
-5. Verdict recorded on-chain (owner only)
+5. **Verdict recorded on-chain (owner only) ← YOU MUST DO THIS**
 6. User can appeal if final verdict
 
 **KEY CONCEPTS:**
 - **User Actions**: File cases, view cases, appeal verdicts
-- **System Actions** (Owner only): Start trials, record verdicts
+- **System Actions** (Owner only): Start trials, **record verdicts**
 - **Off-chain AI**: Lawyer debates and judge reasoning happen off-chain
 - **On-chain Storage**: Only immutable results stored on blockchain
 
@@ -812,7 +935,7 @@ User says: "appeal", "file appeal", "I want to appeal"
 
 **3. TRIAL TOOLS (Owner Only):**
    - start_trial: Start trial (requires: caseId)
-   - record_verdict: Record verdict (requires: caseId, verdictType, reasoning, isFinal)
+   - **record_verdict: Record verdict (requires: caseId, verdictType, reasoning, isFinal) ← MUST USE AFTER VERDICT**
 
 **4. VERDICT TOOLS:**
    - get_verdict: Get verdict details
@@ -865,6 +988,7 @@ When user says "use these scriptures" or "use this information":
 **BEFORE Recording Verdict:**
 → User is system owner
 → Case is IN_TRIAL
+→ Verdict details available
 
 **BEFORE Appeal:**
 → Wallet connected
@@ -882,7 +1006,7 @@ When user says "use these scriptures" or "use this information":
 5. **Helpful** - Make blockchain accessible
 
 **Current Connection:** ${isConnected ? `Connected (${address})` : 'Not connected'}
-**User Role:** ${isOwner ? 'System Owner (can manage trials)' : 'User (can file cases)'}
+**User Role:** ${isOwner ? 'System Owner (can manage trials and record verdicts)' : 'User (can file cases)'}
 **Network:** ${isConnected ? (() => {
         const chain = config.chains.find(c => c.id === chainId);
         return chain?.name || 'Unknown';
@@ -898,7 +1022,9 @@ When user says "use these scriptures" or "use this information":
 - **Helpful** - Anticipate user needs
 - **Transparent** - Clear about capabilities and limitations
 
-**Remember: Your job is to EXECUTE actions via tools, not describe them!** 🏛️⚖️`,
+**Remember: Your job is to EXECUTE actions via tools, not describe them!** 🏛️⚖️
+
+**CRITICAL REMINDER: After ANY verdict is mentioned, if the user is the system owner, you MUST call the record_verdict tool immediately to save it on the blockchain!**`,
   });
 
   const processCommandWithOpenRouter = async (userInput: string): Promise<string> => {
