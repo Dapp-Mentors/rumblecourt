@@ -12,7 +12,6 @@ import {
   appealCase,
   getOwner,
   getContractAddressExport,
-  isContractDeployed,
 } from '../services/blockchain'
 
 // Wallet context to track connection status
@@ -39,19 +38,6 @@ export const setWalletContext = (
 }
 
 /**
- * Helper to check if contract is deployed before operations
- */
-const requireContractDeployed = (): { error?: string } => {
-  if (!isContractDeployed()) {
-    return {
-      error:
-        '⚠️ Contract address not configured. Please ensure the contract is deployed and artifacts/RumbleCourt.json exists.',
-    }
-  }
-  return {}
-}
-
-/**
  * Helper to check wallet connection before write operations
  */
 const requireWallet = (): { error?: string } => {
@@ -65,35 +51,19 @@ const requireWallet = (): { error?: string } => {
 }
 
 /**
- * Helper to check owner status or case creator status for trial operations
+ * Helper to check owner status for privileged operations
  */
-const requireOwnerOrCaseCreator = async (
-  caseId: bigint,
-): Promise<{ error?: string; isCaseCreator?: boolean }> => {
+const requireOwner = (): { error?: string } => {
   const walletCheck = requireWallet()
   if (walletCheck.error) return walletCheck
 
-  // Check if user is owner
-  if (walletContext.isOwner) {
-    return { isCaseCreator: false }
-  }
-
-  // Check if user is case creator
-  try {
-    const caseData = await getCase(caseId)
-    if (
-      caseData.plaintiff.toLowerCase() === walletContext.address?.toLowerCase()
-    ) {
-      return { isCaseCreator: true }
+  if (!walletContext.isOwner) {
+    return {
+      error:
+        'This operation requires system owner privileges. Only the contract owner can perform this action.',
     }
-  } catch (error) {
-    return { error: `Error checking case creator status: ${error}` }
   }
-
-  return {
-    error:
-      'This operation requires system owner privileges or you must be the case creator. Only the contract owner or case creator can perform this action.',
-  }
+  return {}
 }
 
 /**
@@ -141,27 +111,11 @@ export const rumbleCourtMcpTools = {
       'Get information about the currently connected wallet and its connection status',
     inputSchema: z.object({}),
     execute: async () => {
-      const contractDeployed = isContractDeployed()
-      const contractAddr = getContractAddressExport()
-
       if (!walletContext.isConnected || !walletContext.address) {
         return {
           connected: false,
-          contractDeployed,
           message:
             'No wallet connected. Please connect your wallet to use RumbleCourt.',
-        }
-      }
-
-      if (!contractDeployed) {
-        return {
-          connected: true,
-          address: walletContext.address,
-          isOwner: false,
-          contractDeployed: false,
-          contractAddress: contractAddr,
-          message:
-            '⚠️ Contract address not configured. Please deploy the contract first.',
         }
       }
 
@@ -169,10 +123,8 @@ export const rumbleCourtMcpTools = {
         connected: true,
         address: walletContext.address,
         isOwner: walletContext.isOwner,
-        contractDeployed: true,
-        message:
-          'Wallet is connected and ready. Note: Ensure Hardhat node is running if using local network.',
-        contractAddress: contractAddr,
+        message: 'Wallet is connected and ready',
+        contractAddress: getContractAddressExport(),
       }
     },
   }),
@@ -189,9 +141,6 @@ export const rumbleCourtMcpTools = {
       evidenceHash: z.string().describe('IPFS hash or description of evidence'),
     }),
     execute: async ({ caseTitle, evidenceHash }) => {
-      const contractCheck = requireContractDeployed()
-      if (contractCheck.error) return contractCheck
-
       const walletCheck = requireWallet()
       if (walletCheck.error) return walletCheck
 
@@ -314,18 +263,18 @@ export const rumbleCourtMcpTools = {
 
   start_trial: tool({
     description:
-      'Start a trial for a pending case. The system owner or the case creator can perform this action.',
+      'Start a trial for a pending case. Only the system owner can perform this action.',
     inputSchema: z.object({
       caseId: z
         .union([z.string(), z.number(), z.bigint()])
         .describe('The case ID to start trial for'),
     }),
     execute: async ({ caseId }) => {
-      const id = typeof caseId === 'bigint' ? caseId : BigInt(caseId)
-      const authCheck = await requireOwnerOrCaseCreator(id)
-      if (authCheck.error) return { error: authCheck.error }
+      const ownerCheck = requireOwner()
+      if (ownerCheck.error) return ownerCheck
 
       try {
+        const id = typeof caseId === 'bigint' ? caseId : BigInt(caseId)
         const tx = await startTrial(id)
 
         return formatTxResponse(tx, `Trial started for case ${caseId}`, {
@@ -341,7 +290,7 @@ export const rumbleCourtMcpTools = {
 
   record_verdict: tool({
     description:
-      'Record an AI-generated verdict for a case in trial. The system owner or the case creator can perform this action.',
+      'Record an AI-generated verdict for a case in trial. Only the system owner can perform this action.',
     inputSchema: z.object({
       caseId: z
         .union([z.string(), z.number(), z.bigint()])
@@ -359,11 +308,11 @@ export const rumbleCourtMcpTools = {
         .describe('Whether this verdict is final (if true, can be appealed)'),
     }),
     execute: async ({ caseId, verdictType, reasoning, isFinal }) => {
-      const id = typeof caseId === 'bigint' ? caseId : BigInt(caseId)
-      const authCheck = await requireOwnerOrCaseCreator(id)
-      if (authCheck.error) return { error: authCheck.error }
+      const ownerCheck = requireOwner()
+      if (ownerCheck.error) return ownerCheck
 
       try {
+        const id = typeof caseId === 'bigint' ? caseId : BigInt(caseId)
         const tx = await recordVerdict(id, verdictType, reasoning, isFinal)
 
         const verdictTypeNames = [

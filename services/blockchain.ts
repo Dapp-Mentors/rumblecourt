@@ -24,29 +24,17 @@ export interface Verdict {
 }
 
 // Get contract address from deployment artifacts
-const getContractAddress = (): string | null => {
-  try {
-    const address = deploymentArtifacts['contract']?.contractAddress
+const getContractAddress = (): string => {
+  const address = deploymentArtifacts['contract']?.contractAddress
 
-    if (!address) {
-      console.warn('⚠️ Contract address not found in deployment artifacts.')
-      return null
-    }
-
-    // Validate address format
-    if (!ethers.isAddress(address) || address === ethers.ZeroAddress) {
-      console.warn(
-        '⚠️ Invalid contract address in deployment artifacts:',
-        address,
-      )
-      return null
-    }
-
-    return address
-  } catch (error) {
-    console.warn('⚠️ Failed to load contract address:', error)
-    return null
+  if (!address) {
+    console.error('Contract address not found in deployment artifacts!')
+    throw new Error(
+      'Contract address is missing from deployment artifacts. Ensure artifacts/RumbleCourt.json contains a valid address under ["contract"]["contractAddress"].',
+    )
   }
+
+  return address
 }
 
 const contractAddress = getContractAddress()
@@ -60,12 +48,6 @@ const contractAddress = getContractAddress()
  * Use this for all view/query operations that don't require signing
  */
 export const getContractReadonly = (): ethers.Contract => {
-  if (!contractAddress) {
-    throw new Error(
-      'Contract address not configured. Please deploy the contract first.',
-    )
-  }
-
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL
 
   if (!rpcUrl) {
@@ -83,12 +65,6 @@ export const getContractReadonly = (): ethers.Contract => {
  * IMPORTANT: This function checks for browser context safely
  */
 export const getContractWithSigner = async (): Promise<ethers.Contract> => {
-  if (!contractAddress) {
-    throw new Error(
-      'Contract address not configured. Please deploy the contract first.',
-    )
-  }
-
   // Check if we're in a browser environment
   if (typeof window === 'undefined') {
     throw new Error('Cannot sign transactions in non-browser environment')
@@ -184,22 +160,13 @@ export const getCase = async (caseId: bigint): Promise<Case> => {
 }
 
 /**
- * Get all cases filed by a specific user - READ operation
- * Returns ONLY cases created by the specified user address
+ * Get all cases filed by a user - READ operation
  * NOW WITH PROPER ORDERING: Most recent first, COMPLETED before other statuses
- *
- * @param user - The wallet address of the user whose cases to retrieve
- * @returns Array of case IDs belonging to the user, sorted by status priority and recency
  */
 export const getUserCases = async (user: string): Promise<bigint[]> => {
   try {
     const contract = getContractReadonly()
     const caseIds = (await contract.getUserCases(user)) as bigint[]
-
-    // Handle empty array (user has no cases)
-    if (!caseIds || caseIds.length === 0) {
-      return []
-    }
 
     // Fetch full case data for sorting
     const casesWithData = await Promise.all(
@@ -234,19 +201,6 @@ export const getUserCases = async (user: string): Promise<bigint[]> => {
 
     return sortedCases.map((c) => c.caseId)
   } catch (error) {
-    // If blockchain node not running or contract not accessible, return empty array
-    if (
-      error instanceof Error &&
-      (error.message.includes('Contract address not configured') ||
-        error.message.includes('BAD_DATA') ||
-        error.message.includes('could not decode') ||
-        error.message.includes('could not detect network'))
-    ) {
-      console.warn(
-        '⚠️ Cannot access blockchain. Is Hardhat running? (npx hardhat node)',
-      )
-      return []
-    }
     reportError(error)
     throw error
   }
@@ -260,19 +214,6 @@ export const getTotalCases = async (): Promise<bigint> => {
     const contract = getContractReadonly()
     return (await contract.getTotalCases()) as bigint
   } catch (error) {
-    // If blockchain node not running, return 0
-    if (
-      error instanceof Error &&
-      (error.message.includes('Contract address not configured') ||
-        error.message.includes('BAD_DATA') ||
-        error.message.includes('could not decode') ||
-        error.message.includes('could not detect network'))
-    ) {
-      console.warn(
-        '⚠️ Cannot access blockchain. Is Hardhat running? (npx hardhat node)',
-      )
-      return BigInt(0)
-    }
     reportError(error)
     throw error
   }
@@ -403,19 +344,6 @@ export const getOwner = async (): Promise<string> => {
     const contract = getContractReadonly()
     return (await contract.owner()) as string
   } catch (error) {
-    // If blockchain node not running, return zero address
-    if (
-      error instanceof Error &&
-      (error.message.includes('Contract address not configured') ||
-        error.message.includes('BAD_DATA') ||
-        error.message.includes('could not decode') ||
-        error.message.includes('could not detect network'))
-    ) {
-      console.warn(
-        '⚠️ Cannot access blockchain. Is Hardhat running? (npx hardhat node)',
-      )
-      return ethers.ZeroAddress
-    }
     reportError(error)
     throw error
   }
@@ -424,34 +352,8 @@ export const getOwner = async (): Promise<string> => {
 /**
  * Get the contract address
  */
-export const getContractAddressExport = (): string | null => {
+export const getContractAddressExport = (): string => {
   return contractAddress
-}
-
-/**
- * Check if contract address is configured
- */
-export const isContractDeployed = (): boolean => {
-  return contractAddress !== null
-}
-
-/**
- * Check if blockchain node is accessible
- */
-export const checkNodeConnection = async (): Promise<boolean> => {
-  if (!contractAddress) return false
-
-  try {
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL
-    if (!rpcUrl) return false
-
-    const provider = new ethers.JsonRpcProvider(rpcUrl)
-    await provider.getBlockNumber() // Simple check to see if node responds
-    return true
-  } catch (error) {
-    console.warn('⚠️ Cannot connect to blockchain node. Is Hardhat running?', error)
-    return false
-  }
 }
 
 // ============================================

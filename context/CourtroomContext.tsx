@@ -204,8 +204,7 @@ Let's begin your blockchain legal journey!`,
     }
 
     // CRITICAL: Start the trial on-chain first (changes status from PENDING to IN_TRIAL)
-    // Now case creators can start their own trials, not just the owner
-    if (currentCase) {
+    if (isOwner && currentCase) {
       try {
         addMessage({
           id: `trial-${Date.now()}-starting`,
@@ -470,19 +469,11 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       if (isConnected && address) {
         try {
           const ownerAddress = await getOwner();
-          // If blockchain node not running, ownerAddress will be zero address
-          if (ownerAddress === '0x0000000000000000000000000000000000000000') {
-            console.warn('⚠️ Cannot access blockchain. Make sure Hardhat node is running: npx hardhat node');
-            setIsOwner(false);
-            setWalletContext(isConnected, address, false);
-            return;
-          }
           const ownerStatus = address.toLowerCase() === ownerAddress.toLowerCase();
           setIsOwner(ownerStatus);
           setWalletContext(isConnected, address, ownerStatus);
         } catch (error) {
           console.error('Failed to check owner status:', error);
-          setIsOwner(false);
           setWalletContext(isConnected, address, false);
         }
       } else {
@@ -508,8 +499,6 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
           }
         } catch (error) {
           console.error('Failed to load user cases:', error);
-          // Set empty cases array on error (contract not deployed or no cases)
-          setCases([]);
         }
       } else {
         setCases([]);
@@ -1021,11 +1010,11 @@ When user says "use these scriptures" or "use this information":
 → Title + evidence provided
 
 **BEFORE Starting Trial:**
-→ User is system owner OR case creator (plaintiff)
+→ User is system owner
 → Case is PENDING
 
 **BEFORE Recording Verdict:**
-→ User is system owner OR case creator (plaintiff)
+→ User is system owner
 → Case is IN_TRIAL
 → Verdict details available
 
@@ -1045,7 +1034,7 @@ When user says "use these scriptures" or "use this information":
 5. **Helpful** - Make blockchain accessible
 
 **Current Connection:** ${isConnected ? `Connected (${address})` : 'Not connected'}
-**User Role:** ${isOwner ? 'System Owner (can manage all cases, trials, and verdicts)' : 'User (can file cases and manage trials for their own cases)'}
+**User Role:** ${isOwner ? 'System Owner (can manage trials and record verdicts)' : 'User (can file cases)'}
 **Network:** ${isConnected ? ((): string => {
         const chain = config.chains.find(c => c.id === chainId);
         return chain?.name || 'Unknown';
@@ -1063,7 +1052,7 @@ When user says "use these scriptures" or "use this information":
 
 **Remember: Your job is to EXECUTE actions via tools, not describe them!** 🏛️⚖️
 
-**CRITICAL REMINDER: After ANY verdict is mentioned, if the user is the system owner OR the case creator, you MUST call the record_verdict tool immediately to save it on the blockchain!**`,
+**CRITICAL REMINDER: After ANY verdict is mentioned, if the user is the system owner, you MUST call the record_verdict tool immediately to save it on the blockchain!**`,
   });
 
   const processCommandWithOpenRouter = async (userInput: string): Promise<string> => {

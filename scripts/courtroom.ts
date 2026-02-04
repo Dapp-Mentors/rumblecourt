@@ -13,8 +13,12 @@ async function main(): Promise<void> {
   console.log('')
 
   // Get test accounts
-  const [owner, plaintiff1, plaintiff2, plaintiff3] =
-    await hre.ethers.getSigners()
+  const [
+    owner,
+    plaintiff1,
+    plaintiff2,
+    plaintiff3,
+  ] = await hre.ethers.getSigners()
 
   console.log(chalk.yellow('👥  Participants:'))
   console.log(`- Court System (Owner): ${owner.address}`)
@@ -40,10 +44,12 @@ async function main(): Promise<void> {
   console.log(chalk.magenta('===================================='))
 
   console.log(chalk.yellow('📝  Plaintiff 1 files case...'))
-  const case1Tx = await rumbleCourt.connect(plaintiff1).fileCase(
-    'Wrongful Termination - Tech Corp',
-    'QmEmploymentEvidence123', // IPFS hash
-  )
+  const case1Tx = await rumbleCourt
+    .connect(plaintiff1)
+    .fileCase(
+      'Wrongful Termination - Tech Corp',
+      'QmEmploymentEvidence123' // IPFS hash
+    )
   await case1Tx.wait()
   console.log('✅ Case filed successfully')
 
@@ -54,14 +60,12 @@ async function main(): Promise<void> {
   console.log(`- Plaintiff: ${case1.plaintiff}`)
   console.log(`- Evidence Hash: ${case1.evidenceHash}`)
   console.log(`- Status: ${getCaseStatusName(Number(case1.status))}`)
-  console.log(
-    `- Filed At: ${new Date(Number(case1.filedAt) * 1000).toLocaleString()}`,
-  )
+  console.log(`- Filed At: ${new Date(Number(case1.filedAt) * 1000).toLocaleString()}`)
   console.log('')
 
   // Start trial
-  console.log(chalk.cyan('⚖️  Case creator or court system starting trial...'))
-  const startTrial1Tx = await rumbleCourt.connect(plaintiff1).startTrial(1) // Case creator starts their own trial
+  console.log(chalk.cyan('⚖️  Court system starting trial...'))
+  const startTrial1Tx = await rumbleCourt.connect(owner).startTrial(1)
   await startTrial1Tx.wait()
   console.log('✅ Trial started - AI lawyers are now debating!')
   console.log('   (Prosecution AI vs Defense AI - Live debate simulation)')
@@ -69,23 +73,18 @@ async function main(): Promise<void> {
 
   // Simulate AI deliberation time
   console.log(chalk.yellow('🤖  AI Judge analyzing arguments...'))
-  console.log(
-    '   - Prosecution AI: "Evidence shows clear violation of employment contract"',
-  )
-  console.log(
-    '   - Defense AI: "Termination was justified based on performance metrics"',
-  )
+  console.log('   - Prosecution AI: "Evidence shows clear violation of employment contract"')
+  console.log('   - Defense AI: "Termination was justified based on performance metrics"')
   console.log('   - Judge AI: "Evaluating credibility and legal precedents..."')
   console.log('')
 
   // Record verdict
-  console.log(chalk.cyan('⚖️  Recording AI Judge verdict (by case creator)...'))
-  const verdict1Tx = await rumbleCourt.connect(plaintiff1).recordVerdict(
-    // Case creator records verdict for their own case
+  console.log(chalk.cyan('⚖️  Recording AI Judge verdict...'))
+  const verdict1Tx = await rumbleCourt.connect(owner).recordVerdict(
     1,
     0, // GUILTY (in favor of plaintiff)
     'Based on the preponderance of evidence, the termination violated employment contract terms. The defendant failed to follow proper termination procedures as outlined in the employment agreement. Plaintiff is entitled to compensation.',
-    true, // Final verdict
+    true // Final verdict
   )
   await verdict1Tx.wait()
   console.log('✅ Verdict recorded on-chain')
@@ -93,16 +92,10 @@ async function main(): Promise<void> {
   const verdict1 = await rumbleCourt.getVerdict(1)
   console.log(chalk.green('📋  Verdict Details:'))
   console.log(`- Case ID: ${verdict1.caseId}`)
-  console.log(
-    `- Verdict Type: ${getVerdictTypeName(Number(verdict1.verdictType))}`,
-  )
+  console.log(`- Verdict Type: ${getVerdictTypeName(Number(verdict1.verdictType))}`)
   console.log(`- Reasoning: ${verdict1.reasoning}`)
   console.log(`- Final: ${verdict1.isFinal ? 'Yes ✅' : 'No ⏳'}`)
-  console.log(
-    `- Timestamp: ${new Date(
-      Number(verdict1.timestamp) * 1000,
-    ).toLocaleString()}`,
-  )
+  console.log(`- Timestamp: ${new Date(Number(verdict1.timestamp) * 1000).toLocaleString()}`)
   console.log('')
 
   // =============================================
@@ -116,26 +109,23 @@ async function main(): Promise<void> {
     .connect(plaintiff2)
     .fileCase(
       'Breach of Service Agreement - Vendor Dispute',
-      'QmContractEvidence456',
+      'QmContractEvidence456'
     )
   await case2Tx.wait()
   console.log('✅ Case filed')
 
-  console.log(chalk.cyan('⚖️  Starting trial (by case creator)...'))
-  await rumbleCourt.connect(plaintiff2).startTrial(2) // Case creator starts their own trial
+  console.log(chalk.cyan('⚖️  Starting trial...'))
+  await rumbleCourt.connect(owner).startTrial(2)
   console.log('✅ Trial in progress')
   console.log('')
 
   // Record preliminary verdict (not final)
-  console.log(
-    chalk.cyan('⚖️  Recording preliminary verdict (by case creator)...'),
-  )
-  const verdict2Tx = await rumbleCourt.connect(plaintiff2).recordVerdict(
-    // Case creator records verdict
+  console.log(chalk.cyan('⚖️  Recording preliminary verdict...'))
+  const verdict2Tx = await rumbleCourt.connect(owner).recordVerdict(
     2,
     2, // SETTLEMENT
     'Parties have reached a mutual settlement agreement. Terms confidential per settlement agreement. Case resolved amicably without full trial.',
-    false, // Not final yet - awaiting final paperwork
+    false // Not final yet - awaiting final paperwork
   )
   await verdict2Tx.wait()
   console.log('✅ Preliminary verdict recorded (awaiting finalization)')
@@ -149,19 +139,21 @@ async function main(): Promise<void> {
 
   const case3Tx = await rumbleCourt
     .connect(plaintiff3)
-    .fileCase('Patent Infringement - Software Technology', 'QmIPEvidence789')
+    .fileCase(
+      'Patent Infringement - Software Technology',
+      'QmIPEvidence789'
+    )
   await case3Tx.wait()
   console.log('✅ Case filed')
 
-  await rumbleCourt.connect(owner).startTrial(3) // Owner starts this one to show both options work
+  await rumbleCourt.connect(owner).startTrial(3)
   console.log('✅ Trial started')
 
-  const verdict3Tx = await rumbleCourt.connect(plaintiff3).recordVerdict(
-    // Case creator records their own verdict
+  const verdict3Tx = await rumbleCourt.connect(owner).recordVerdict(
     3,
     1, // NOT_GUILTY (defendant wins)
-    "The accused technology does not infringe on the plaintiff's patents. Analysis shows substantial differences in implementation and methodology. Defendant's innovation falls outside the scope of plaintiff's patent claims.",
-    true, // Final
+    'The accused technology does not infringe on the plaintiff\'s patents. Analysis shows substantial differences in implementation and methodology. Defendant\'s innovation falls outside the scope of plaintiff\'s patent claims.',
+    true // Final
   )
   await verdict3Tx.wait()
   console.log('✅ Verdict: NOT GUILTY - Defendant prevails')
@@ -175,17 +167,13 @@ async function main(): Promise<void> {
 
   console.log(chalk.yellow('📋  Plaintiff 3 filing appeal...'))
   console.log('   Grounds: "Errors in patent claim interpretation"')
-
+  
   const appealTx = await rumbleCourt.connect(plaintiff3).appealCase(3)
   await appealTx.wait()
   console.log('✅ Appeal filed - Case status updated to APPEALED')
 
   const case3After = await rumbleCourt.getCase(3)
-  console.log(
-    chalk.green(
-      `📋  Case 3 Status: ${getCaseStatusName(Number(case3After.status))}`,
-    ),
-  )
+  console.log(chalk.green(`📋  Case 3 Status: ${getCaseStatusName(Number(case3After.status))}`)  )
   console.log('')
 
   // =============================================
@@ -211,21 +199,9 @@ async function main(): Promise<void> {
 
   // Check verdict status
   console.log(chalk.cyan('Verdict Status:'))
-  console.log(
-    `- Case 1: ${
-      (await rumbleCourt.hasVerdict(1)) ? '✅ Has Verdict' : '⏳ No Verdict'
-    }`,
-  )
-  console.log(
-    `- Case 2: ${
-      (await rumbleCourt.hasVerdict(2)) ? '✅ Has Verdict' : '⏳ No Verdict'
-    }`,
-  )
-  console.log(
-    `- Case 3: ${
-      (await rumbleCourt.hasVerdict(3)) ? '✅ Has Verdict' : '⏳ No Verdict'
-    }`,
-  )
+  console.log(`- Case 1: ${(await rumbleCourt.hasVerdict(1)) ? '✅ Has Verdict' : '⏳ No Verdict'}`)
+  console.log(`- Case 2: ${(await rumbleCourt.hasVerdict(2)) ? '✅ Has Verdict' : '⏳ No Verdict'}`)
+  console.log(`- Case 3: ${(await rumbleCourt.hasVerdict(3)) ? '✅ Has Verdict' : '⏳ No Verdict'}`)
   console.log('')
 
   // =============================================
@@ -244,17 +220,12 @@ async function main(): Promise<void> {
   console.log('⚖️  Transparent, immutable justice system')
   console.log('🤖  AI-powered legal proceedings')
   console.log('')
-  console.log(
-    chalk.green('This demonstrates the complete RumbleCourt workflow:'),
-  )
+  console.log(chalk.green('This demonstrates the complete RumbleCourt workflow:'))
   console.log('1. Users file cases with evidence')
-  console.log('2. Case creators or system owner can start trials')
-  console.log('3. AI lawyers debate in real-time (off-chain)')
-  console.log(
-    '4. Case creators or system owner record AI judge verdict (on-chain)',
-  )
-  console.log('5. Parties can appeal decisions')
-  console.log('6. All proceedings immutably recorded')
+  console.log('2. AI lawyers debate in real-time (off-chain)')
+  console.log('3. AI judge delivers verdict (recorded on-chain)')
+  console.log('4. Parties can appeal decisions')
+  console.log('5. All proceedings immutably recorded')
   console.log('')
 }
 

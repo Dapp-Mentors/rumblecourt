@@ -15,7 +15,7 @@ describe('RumbleCourt', function () {
 
     const RumbleCourtFactory = await hre.ethers.getContractFactory(
       'RumbleCourt',
-      owner,
+      owner
     )
     rumbleCourt = (await RumbleCourtFactory.deploy()) as RumbleCourt
     await rumbleCourt.waitForDeployment()
@@ -24,7 +24,7 @@ describe('RumbleCourt', function () {
   describe('Deployment', function () {
     it('Should deploy successfully', async function () {
       expect(await rumbleCourt.getAddress()).to.not.equal(
-        hre.ethers.ZeroAddress,
+        hre.ethers.ZeroAddress
       )
     })
 
@@ -55,17 +55,27 @@ describe('RumbleCourt', function () {
     })
 
     it('Should increment case IDs correctly', async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Case 1', 'Hash1')
-      await rumbleCourt.connect(plaintiff2).fileCase('Case 2', 'Hash2')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Case 1', 'Hash1')
+      await rumbleCourt
+        .connect(plaintiff2)
+        .fileCase('Case 2', 'Hash2')
 
       expect(await rumbleCourt.nextCaseId()).to.equal(3)
       expect(await rumbleCourt.getTotalCases()).to.equal(2)
     })
 
     it('Should track user cases correctly', async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Case 1', 'Hash1')
-      await rumbleCourt.connect(plaintiff1).fileCase('Case 2', 'Hash2')
-      await rumbleCourt.connect(plaintiff2).fileCase('Case 3', 'Hash3')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Case 1', 'Hash1')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Case 2', 'Hash2')
+      await rumbleCourt
+        .connect(plaintiff2)
+        .fileCase('Case 3', 'Hash3')
 
       const plaintiff1Cases = await rumbleCourt.getUserCases(plaintiff1.address)
       const plaintiff2Cases = await rumbleCourt.getUserCases(plaintiff2.address)
@@ -79,7 +89,7 @@ describe('RumbleCourt', function () {
 
     it('Should emit CaseFiled event', async function () {
       await expect(
-        rumbleCourt.connect(plaintiff1).fileCase('Test Case', 'HashABC'),
+        rumbleCourt.connect(plaintiff1).fileCase('Test Case', 'HashABC')
       )
         .to.emit(rumbleCourt, 'CaseFiled')
         .withArgs(1, plaintiff1.address, 'Test Case')
@@ -88,18 +98,13 @@ describe('RumbleCourt', function () {
 
   describe('Trial Management', function () {
     beforeEach(async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Test Case', 'TestHash')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Test Case', 'TestHash')
     })
 
-    it('Should allow owner to start trial successfully', async function () {
+    it('Should start trial successfully', async function () {
       await rumbleCourt.connect(owner).startTrial(1)
-
-      const caseData = await rumbleCourt.getCase(1)
-      expect(caseData.status).to.equal(1) // IN_TRIAL
-    })
-
-    it('Should allow case creator to start their own trial', async function () {
-      await rumbleCourt.connect(plaintiff1).startTrial(1)
 
       const caseData = await rumbleCourt.getCase(1)
       expect(caseData.status).to.equal(1) // IN_TRIAL
@@ -111,39 +116,41 @@ describe('RumbleCourt', function () {
         .withArgs(1)
     })
 
-    it('Should not allow non-owner and non-creator to start trial', async function () {
+    it('Should not allow non-owner to start trial', async function () {
       await expect(
-        rumbleCourt.connect(plaintiff2).startTrial(1),
-      ).to.be.revertedWith('Only owner or case creator can start trial')
+        rumbleCourt.connect(plaintiff1).startTrial(1)
+      ).to.be.revertedWith('Only owner')
     })
 
     it('Should not start trial for non-pending case', async function () {
       await rumbleCourt.connect(owner).startTrial(1)
-
-      await expect(rumbleCourt.connect(owner).startTrial(1)).to.be.revertedWith(
-        'Case must be pending',
-      )
+      
+      await expect(
+        rumbleCourt.connect(owner).startTrial(1)
+      ).to.be.revertedWith('Case must be pending')
     })
 
     it('Should not start trial for non-existent case', async function () {
       await expect(
-        rumbleCourt.connect(owner).startTrial(999),
+        rumbleCourt.connect(owner).startTrial(999)
       ).to.be.revertedWith('Case does not exist')
     })
   })
 
   describe('Verdict Recording', function () {
     beforeEach(async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Test Case', 'TestHash')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Test Case', 'TestHash')
       await rumbleCourt.connect(owner).startTrial(1)
     })
 
-    it('Should allow owner to record verdict successfully', async function () {
+    it('Should record verdict successfully', async function () {
       await rumbleCourt.connect(owner).recordVerdict(
         1,
         0, // GUILTY
         'Based on overwhelming evidence',
-        true,
+        true
       )
 
       const verdict = await rumbleCourt.getVerdict(1)
@@ -153,27 +160,12 @@ describe('RumbleCourt', function () {
       expect(verdict.isFinal).to.be.true
     })
 
-    it('Should allow case creator to record verdict for their own case', async function () {
-      await rumbleCourt.connect(plaintiff1).recordVerdict(
-        1,
-        1, // NOT_GUILTY
-        'Insufficient evidence',
-        true,
-      )
-
-      const verdict = await rumbleCourt.getVerdict(1)
-      expect(verdict.caseId).to.equal(1)
-      expect(verdict.verdictType).to.equal(1) // NOT_GUILTY
-      expect(verdict.reasoning).to.equal('Insufficient evidence')
-      expect(verdict.isFinal).to.be.true
-    })
-
     it('Should update case status when final verdict recorded', async function () {
       await rumbleCourt.connect(owner).recordVerdict(
         1,
         1, // NOT_GUILTY
         'Insufficient evidence',
-        true,
+        true
       )
 
       const caseData = await rumbleCourt.getCase(1)
@@ -185,7 +177,7 @@ describe('RumbleCourt', function () {
         1,
         2, // SETTLEMENT
         'Parties reached agreement',
-        false,
+        false
       )
 
       const caseData = await rumbleCourt.getCase(1)
@@ -198,24 +190,26 @@ describe('RumbleCourt', function () {
           1,
           3, // DISMISSED
           'Lack of jurisdiction',
-          true,
-        ),
+          true
+        )
       )
         .to.emit(rumbleCourt, 'VerdictRecorded')
         .withArgs(1, 3, true)
     })
 
-    it('Should not allow non-owner and non-creator to record verdict', async function () {
+    it('Should not allow non-owner to record verdict', async function () {
       await expect(
-        rumbleCourt.connect(plaintiff2).recordVerdict(1, 0, 'Test', true),
-      ).to.be.revertedWith('Only owner or case creator can record verdict')
+        rumbleCourt.connect(plaintiff1).recordVerdict(1, 0, 'Test', true)
+      ).to.be.revertedWith('Only owner')
     })
 
     it('Should not record verdict for non-trial case', async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Another Case', 'Hash')
-
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Another Case', 'Hash')
+      
       await expect(
-        rumbleCourt.connect(owner).recordVerdict(2, 0, 'Test', true),
+        rumbleCourt.connect(owner).recordVerdict(2, 0, 'Test', true)
       ).to.be.revertedWith('Case must be in trial')
     })
 
@@ -230,13 +224,15 @@ describe('RumbleCourt', function () {
 
   describe('Appeals', function () {
     beforeEach(async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Test Case', 'TestHash')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Test Case', 'TestHash')
       await rumbleCourt.connect(owner).startTrial(1)
       await rumbleCourt.connect(owner).recordVerdict(
         1,
         0, // GUILTY
         'Guilty verdict',
-        true,
+        true
       )
     })
 
@@ -255,41 +251,54 @@ describe('RumbleCourt', function () {
 
     it('Should not allow non-plaintiff to appeal', async function () {
       await expect(
-        rumbleCourt.connect(plaintiff2).appealCase(1),
+        rumbleCourt.connect(plaintiff2).appealCase(1)
       ).to.be.revertedWith('Only plaintiff can appeal')
     })
 
     it('Should not appeal non-completed case', async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Another Case', 'Hash')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Another Case', 'Hash')
       await rumbleCourt.connect(owner).startTrial(2)
-
+      
       await expect(
-        rumbleCourt.connect(plaintiff1).appealCase(2),
+        rumbleCourt.connect(plaintiff1).appealCase(2)
       ).to.be.revertedWith('Case must be completed')
     })
 
     it('Should not appeal case without final verdict', async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Another Case', 'Hash')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Another Case', 'Hash')
       await rumbleCourt.connect(owner).startTrial(2)
-      await rumbleCourt.connect(owner).recordVerdict(2, 0, 'Non-final', false)
-
+      await rumbleCourt.connect(owner).recordVerdict(
+        2,
+        0,
+        'Non-final',
+        false
+      )
+      
       await expect(
-        rumbleCourt.connect(plaintiff1).appealCase(2),
+        rumbleCourt.connect(plaintiff1).appealCase(2)
       ).to.be.revertedWith('Case must be completed')
     })
   })
 
   describe('View Functions', function () {
     beforeEach(async function () {
-      await rumbleCourt.connect(plaintiff1).fileCase('Case 1', 'Hash1')
-      await rumbleCourt.connect(plaintiff2).fileCase('Case 2', 'Hash2')
+      await rumbleCourt
+        .connect(plaintiff1)
+        .fileCase('Case 1', 'Hash1')
+      await rumbleCourt
+        .connect(plaintiff2)
+        .fileCase('Case 2', 'Hash2')
       await rumbleCourt.connect(owner).startTrial(1)
       await rumbleCourt.connect(owner).recordVerdict(1, 0, 'Verdict 1', true)
     })
 
     it('Should get case details correctly', async function () {
       const caseData = await rumbleCourt.getCase(1)
-
+      
       expect(caseData.caseId).to.equal(1)
       expect(caseData.plaintiff).to.equal(plaintiff1.address)
       expect(caseData.caseTitle).to.equal('Case 1')
@@ -298,7 +307,7 @@ describe('RumbleCourt', function () {
 
     it('Should get verdict correctly', async function () {
       const verdict = await rumbleCourt.getVerdict(1)
-
+      
       expect(verdict.caseId).to.equal(1)
       expect(verdict.verdictType).to.equal(0)
       expect(verdict.reasoning).to.equal('Verdict 1')
@@ -306,15 +315,15 @@ describe('RumbleCourt', function () {
     })
 
     it('Should revert when getting non-existent case', async function () {
-      await expect(rumbleCourt.getCase(999)).to.be.revertedWith(
-        'Case does not exist',
-      )
+      await expect(
+        rumbleCourt.getCase(999)
+      ).to.be.revertedWith('Case does not exist')
     })
 
     it('Should revert when getting verdict for case without verdict', async function () {
-      await expect(rumbleCourt.getVerdict(2)).to.be.revertedWith(
-        'No verdict recorded',
-      )
+      await expect(
+        rumbleCourt.getVerdict(2)
+      ).to.be.revertedWith('No verdict recorded')
     })
 
     it('Should get total cases correctly', async function () {
@@ -324,7 +333,7 @@ describe('RumbleCourt', function () {
     it('Should get user cases correctly', async function () {
       const plaintiff1Cases = await rumbleCourt.getUserCases(plaintiff1.address)
       const plaintiff2Cases = await rumbleCourt.getUserCases(plaintiff2.address)
-
+      
       expect(plaintiff1Cases.length).to.equal(1)
       expect(plaintiff2Cases.length).to.equal(1)
     })
@@ -336,7 +345,7 @@ describe('RumbleCourt', function () {
       await rumbleCourt
         .connect(plaintiff1)
         .fileCase('Fraud Case', 'QmFraudEvidence')
-
+      
       let caseData = await rumbleCourt.getCase(1)
       expect(caseData.status).to.equal(0) // PENDING
 
@@ -350,7 +359,7 @@ describe('RumbleCourt', function () {
         1,
         0, // GUILTY
         'Evidence was compelling',
-        true,
+        true
       )
       caseData = await rumbleCourt.getCase(1)
       expect(caseData.status).to.equal(2) // COMPLETED
