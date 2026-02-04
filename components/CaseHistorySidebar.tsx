@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { FolderOpen, FileText, Calendar, Clock, CheckCircle2, XCircle, MinusCircle, Loader2 } from 'lucide-react';
-import { Case, CaseStatus } from './types';
+import { Case } from './types';
 
 interface CaseHistorySidebarProps {
   cases: Case[];
@@ -73,26 +73,11 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
     }
   };
 
-  // Sort cases: COMPLETED first, then by most recent
-  const sortedCases = [...cases].sort((a, b) => {
-    // Priority: COMPLETED > IN_TRIAL > PENDING > APPEALED
-    const statusPriority: Record<CaseStatus, number> = {
-      'COMPLETED': 0,
-      'IN_TRIAL': 1,
-      'PENDING': 2,
-      'APPEALED': 3,
-    };
-
-    const priorityA = statusPriority[a.status] ?? 999;
-    const priorityB = statusPriority[b.status] ?? 999;
-
-    // If same status, sort by most recent first
-    if (priorityA === priorityB) {
-      return Number(b.filedAt - a.filedAt);
-    }
-
-    return priorityA - priorityB;
-  });
+  // Cases are already sorted by the blockchain service (getUserCases):
+  // 1. COMPLETED cases first
+  // 2. Within each status group, sorted by most recent (filedAt descending)
+  // No need to re-sort here
+  const displayCases = cases;
 
   return (
     <div className="h-full flex flex-col bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden">
@@ -101,7 +86,7 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-bold text-white">Case History</h2>
+            <h2 className="text-sm font-bold text-white">My Cases</h2>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
@@ -122,7 +107,7 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
 
       {/* Cases List - Optimized for scrolling */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0 custom-scrollbar">
-        {sortedCases.length === 0 ? (
+        {displayCases.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
               <FileText className="w-8 h-8 text-slate-500" />
@@ -131,9 +116,9 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
             <p className="text-xs text-slate-500">File your first case to get started</p>
           </div>
         ) : (
-          sortedCases.map((case_) => {
+          displayCases.map((case_) => {
             // Debug log for first case
-            if (sortedCases.indexOf(case_) === 0) {
+            if (displayCases.indexOf(case_) === 0) {
               console.log('First case status:', case_.status, 'Type:', typeof case_.status);
             }
 
@@ -191,7 +176,7 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
       {/* Footer Tip */}
       <div className="px-3 py-2 border-t border-slate-700/50 bg-slate-800/30 flex-shrink-0">
         <p className="text-[10px] text-slate-500 text-center">
-          💡 Click a case to view details • Auto-refreshing
+          💡 Your cases only • Click to view • Auto-refresh
         </p>
       </div>
 
