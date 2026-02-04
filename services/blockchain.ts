@@ -116,16 +116,16 @@ export const fileCase = async (
 ): Promise<ethers.TransactionResponse> => {
   try {
     const contract = await getContractWithSigner()
-    
+
     // Debug contract instance
     console.log('Contract instance:', contract)
     console.log('Contract methods:', Object.keys(contract))
     console.log('fileCase method:', typeof contract.fileCase, contract.fileCase)
-    
+
     if (!contract.fileCase) {
       throw new Error('Contract does not have a fileCase method')
     }
-    
+
     const tx = await contract.fileCase(caseTitle, evidenceHash)
 
     // Ensure tx is a proper TransactionResponse
@@ -161,11 +161,45 @@ export const getCase = async (caseId: bigint): Promise<Case> => {
 
 /**
  * Get all cases filed by a user - READ operation
+ * NOW WITH PROPER ORDERING: Most recent first, COMPLETED before other statuses
  */
 export const getUserCases = async (user: string): Promise<bigint[]> => {
   try {
     const contract = getContractReadonly()
-    return (await contract.getUserCases(user)) as bigint[]
+    const caseIds = (await contract.getUserCases(user)) as bigint[]
+
+    // Fetch full case data for sorting
+    const casesWithData = await Promise.all(
+      caseIds.map(async (caseId) => {
+        const caseData = await getCase(caseId)
+        return { caseId, caseData }
+      }),
+    )
+
+    // Sort cases:
+    // 1. COMPLETED cases first
+    // 2. Within each status group, sort by most recent (filedAt descending)
+    const sortedCases = casesWithData.sort((a, b) => {
+      // Priority order: COMPLETED > IN_TRIAL > PENDING > APPEALED
+      const statusPriority: Record<CaseStatus, number> = {
+        COMPLETED: 0,
+        IN_TRIAL: 1,
+        PENDING: 2,
+        APPEALED: 3,
+      }
+
+      const priorityA = statusPriority[a.caseData.status]
+      const priorityB = statusPriority[b.caseData.status]
+
+      // If same status, sort by most recent first
+      if (priorityA === priorityB) {
+        return Number(b.caseData.filedAt - a.caseData.filedAt)
+      }
+
+      return priorityA - priorityB
+    })
+
+    return sortedCases.map((c) => c.caseId)
   } catch (error) {
     reportError(error)
     throw error
@@ -413,36 +447,121 @@ export const onCaseAppealed = async (
 // ============================================
 
 const formatCase = (caseData: unknown): Case => {
-  const c = caseData as Record<string, unknown>
+  console.log('🔍 Formatting case, raw data:', caseData)
+
+  // Define the shape of case data from contract
+  interface RawCaseData {
+    caseId: bigint | number | string
+    plaintiff: string
+    caseTitle: string
+    evidenceHash: string
+    filedAt: bigint | number | string
+    status: bigint | number | string
+  }
+
+  // Handle both object and array responses from Solidity
+  let data: RawCaseData
+
+  if (Array.isArray(caseData)) {
+    // Solidity struct returns as array: [caseId, plaintiff, caseTitle, evidenceHash, filedAt, status]
+    data = {
+      caseId: caseData[0] as bigint | number | string,
+      plaintiff: caseData[1] as string,
+      caseTitle: caseData[2] as string,
+      evidenceHash: caseData[3] as string,
+      filedAt: caseData[4] as bigint | number | string,
+      status: caseData[5] as bigint | number | string,
+    }
+  } else {
+    data = caseData as RawCaseData
+  }
+
+  // Robust status conversion - handles bigint, string, or number
+  let statusNum: number
+  const rawStatus = data.status
+
+  if (typeof rawStatus === 'bigint') {
+    statusNum = Number(rawStatus)
+    console.log('Status is bigint:', rawStatus, '-> number:', statusNum)
+  } else if (typeof rawStatus === 'string') {
+    // Try to parse as number first
+    if (!isNaN(Number(rawStatus))) {
+      statusNum = Number(rawStatus)
+      console.log(
+        'Status is numeric string:',
+        rawStatus,
+        '-> number:',
+        statusNum,
+      )
+    } else {
+      // It's a status name string like "COMPLETED"
+      const statusMap: Record<string, number> = {
+        PENDING: 0,
+        IN_TRIAL: 1,
+        INTRIAL: 1,
+        COMPLETED: 2,
+        APPEALED: 3,
+      }
+      statusNum = statusMap[rawStatus.toUpperCase()] ?? 0
+      console.log('Status is name string:', rawStatus, '-> number:', statusNum)
+    }
+  } else {
+    statusNum = Number(rawStatus)
+    console.log('Status is number:', rawStatus, '-> number:', statusNum)
+  }
+
+  const formattedStatus = formatStatus(statusNum)
+  console.log('Final status conversion:', {
+    raw: rawStatus,
+    rawType: typeof rawStatus,
+    num: statusNum,
+    formatted: formattedStatus,
+  })
+
   return {
-    caseId: BigInt(c.caseId as string | number | bigint),
-    plaintiff: c.plaintiff as string,
-    caseTitle: c.caseTitle as string,
-    evidenceHash: c.evidenceHash as string,
-    filedAt: BigInt(c.filedAt as string | number | bigint),
-    status: formatStatus(Number(c.status)),
+    caseId: BigInt(data.caseId),
+    plaintiff: String(data.plaintiff),
+    caseTitle: String(data.caseTitle),
+    evidenceHash: String(data.evidenceHash),
+    filedAt: BigInt(data.filedAt),
+    status: formattedStatus,
   }
 }
 
 const formatVerdict = (verdictData: unknown): Verdict => {
-  const v = verdictData as Record<string, unknown>
+  interface RawVerdictData {
+    caseId: bigint | number | string
+    verdictType: bigint | number | string
+    reasoning: string
+    timestamp: bigint | number | string
+    isFinal: boolean
+  }
+
+  const v = verdictData as RawVerdictData
+
   return {
-    caseId: BigInt(v.caseId as string | number | bigint),
+    caseId: BigInt(v.caseId),
     verdictType: formatVerdictType(Number(v.verdictType)),
-    reasoning: v.reasoning as string,
-    timestamp: BigInt(v.timestamp as string | number | bigint),
-    isFinal: v.isFinal as boolean,
+    reasoning: String(v.reasoning),
+    timestamp: BigInt(v.timestamp),
+    isFinal: Boolean(v.isFinal),
   }
 }
 
 const formatStatus = (status: number): CaseStatus => {
   const statuses: CaseStatus[] = [
-    'PENDING',
-    'IN_TRIAL',
-    'COMPLETED',
-    'APPEALED',
+    'PENDING', // 0
+    'IN_TRIAL', // 1
+    'COMPLETED', // 2
+    'APPEALED', // 3
   ]
-  return statuses[status] || 'PENDING'
+
+  if (status < 0 || status >= statuses.length) {
+    console.error('Invalid status value:', status)
+    return 'PENDING' // Default fallback
+  }
+
+  return statuses[status]
 }
 
 const formatVerdictType = (type: number): VerdictType => {

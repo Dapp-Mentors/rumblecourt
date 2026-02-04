@@ -1,12 +1,15 @@
 // Simplified types for the minimal RumbleCourt contract
 
-// Case Status Enum
-export enum CaseStatus {
-  PENDING = 0,
-  IN_TRIAL = 1,
-  COMPLETED = 2,
-  APPEALED = 3,
-}
+// Case Status - Using string literals to match blockchain.ts
+export type CaseStatus = 'PENDING' | 'IN_TRIAL' | 'COMPLETED' | 'APPEALED'
+
+// Numeric mapping for components that need it
+export const CaseStatusValue = {
+  PENDING: 0,
+  IN_TRIAL: 1,
+  COMPLETED: 2,
+  APPEALED: 3,
+} as const
 
 // Verdict Type Enum
 export enum VerdictType {
