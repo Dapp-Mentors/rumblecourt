@@ -24,13 +24,6 @@ const CourtroomSimulation: React.FC = () => {
   // Ref to track if user has intentionally scrolled up
   const isUserScrolledUp = useRef(false);
 
-  // Helper to determine case data
-  const getCaseForSimulation = () => {
-    if (currentCase) return { caseTitle: currentCase.caseTitle, evidenceHash: currentCase.evidenceHash };
-    if (cases.length > 0) return { caseTitle: cases[0].caseTitle, evidenceHash: cases[0].evidenceHash };
-    return { caseTitle: 'Contract Dispute', evidenceHash: 'QmEvidenceHash123' };
-  };
-
   // --- SCROLL LOGIC FIX ---
 
   // 1. Detect Scroll Position
@@ -81,13 +74,29 @@ const CourtroomSimulation: React.FC = () => {
   };
 
   const handleSimulate = async (): Promise<void> => {
-    const caseToSimulate = getCaseForSimulation();
-    if (!caseToSimulate.caseTitle.trim() || !caseToSimulate.evidenceHash.trim()) return;
+    // Check if there are any cases
+    if (cases.length === 0) {
+      // This will be caught by the simulateTrial function, but we can provide immediate UI feedback
+      await simulateTrial('', '');
+      return;
+    }
 
-    // Force scroll to bottom when simulation starts
-    isUserScrolledUp.current = false;
+    // Check if a case is selected
+    if (!currentCase) {
+      // This will be caught by the simulateTrial function
+      await simulateTrial('', '');
+      return;
+    }
 
-    await simulateTrial(caseToSimulate.caseTitle, caseToSimulate.evidenceHash);
+    // Check if case is already completed
+    if (currentCase.status === 'COMPLETED') {
+      // This will be caught by the simulateTrial function
+      await simulateTrial(currentCase.caseTitle, currentCase.evidenceHash);
+      return;
+    }
+
+    // All checks passed, proceed with simulation
+    await simulateTrial(currentCase.caseTitle, currentCase.evidenceHash);
   };
 
   return (

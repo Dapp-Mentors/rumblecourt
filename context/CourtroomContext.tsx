@@ -164,12 +164,38 @@ Let's begin your blockchain legal journey!`,
     setIsSimulatingState(true);
     const debateHistory: Array<{ agent: string, message: string }> = [];
 
+    // First, check if there are any cases at all
+    if (cases.length === 0) {
+      addMessage({
+        id: `trial-${Date.now()}-no-cases`,
+        role: 'system',
+        content: '⚠️ **NO CASES FOUND**\n\nYou need to file a case first before you can simulate a courtroom trial. Please file a case and try again.',
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+      setIsSimulatingState(false);
+      return;
+    }
+
     // Validate that we have a current case selected
     if (!currentCase) {
       addMessage({
         id: `trial-${Date.now()}-no-case`,
         role: 'system',
-        content: '⚠️ **NO CASE SELECTED**\n\nPlease select a case before starting a trial simulation.',
+        content: '⚠️ **NO CASE SELECTED**\n\nPlease select a case from the sidebar before starting a trial simulation.',
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+      setIsSimulatingState(false);
+      return;
+    }
+
+    // Check if the case is already completed
+    if (currentCase.status === 'COMPLETED') {
+      addMessage({
+        id: `trial-${Date.now()}-already-completed`,
+        role: 'system',
+        content: '⚠️ **CASE ALREADY COMPLETED**\n\nThis case has already been completed with a final verdict. You cannot simulate a trial for a completed case.\n\nIf you disagree with the verdict, you can appeal the case instead.',
         timestamp: new Date(),
         timestampString: new Date().toLocaleTimeString()
       });
@@ -361,6 +387,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
     const verdictType = verdictMessage.toUpperCase().includes('GUILTY') && !verdictMessage.toUpperCase().includes('NOT GUILTY') ? 0 : 1; // 0 = GUILTY, 1 = NOT_GUILTY
 
     // Record verdict on blockchain automatically (only if user is owner)
+    // Note: We already checked that status is not COMPLETED at the start of simulateTrial
     if (isOwner && currentCase) {
       try {
         addMessage({
@@ -395,7 +422,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
           });
 
           // Reload cases to show updated status
-          setTimeout(async () => {
+          setTimeout(async (): Promise<void> => {
             try {
               const userCasesTool = courtroomTools.get_user_cases;
               if (userCasesTool && typeof userCasesTool.execute === 'function' && address) {
@@ -438,7 +465,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
   // Update wallet context and check owner status when wallet changes
   useEffect(() => {
-    const checkOwnerStatus = async () => {
+    const checkOwnerStatus = async (): Promise<void> => {
       if (isConnected && address) {
         try {
           const ownerAddress = await getOwner();
@@ -459,7 +486,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
   // Load user cases when wallet connects
   useEffect(() => {
-    const loadUserCases = async () => {
+    const loadUserCases = async (): Promise<void> => {
       if (isConnected && address) {
         try {
           const tool = courtroomTools.get_user_cases;
@@ -479,6 +506,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
     };
 
     loadUserCases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, address]);
 
   // MCP Tools
@@ -1007,7 +1035,7 @@ When user says "use these scriptures" or "use this information":
 
 **Current Connection:** ${isConnected ? `Connected (${address})` : 'Not connected'}
 **User Role:** ${isOwner ? 'System Owner (can manage trials and record verdicts)' : 'User (can file cases)'}
-**Network:** ${isConnected ? (() => {
+**Network:** ${isConnected ? ((): string => {
         const chain = config.chains.find(c => c.id === chainId);
         return chain?.name || 'Unknown';
       })() : 'Not connected'}
