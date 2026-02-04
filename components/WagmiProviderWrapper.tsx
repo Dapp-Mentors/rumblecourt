@@ -3,8 +3,8 @@
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { config } from '../lib/wagmi'
+import { WalletProvider } from '../context/WalletContext';
 import Header from './Header'
-import Footer from './Footer';
 
 const queryClient = new QueryClient()
 
@@ -16,9 +16,11 @@ export default function WagmiProviderWrapper({
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={config}>
-        <Header />
-        {children}
-        <Footer />
+        <WalletProvider>
+          <Header />
+          {children}
+          
+        </WalletProvider>
       </WagmiProvider>
     </QueryClientProvider>
   )

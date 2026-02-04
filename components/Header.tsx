@@ -2,20 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
-import { useAccount, useConnect, useDisconnect, useChainId } from 'wagmi';
+import { useWallet } from '../context/WalletContext';
+import { config } from '../lib/wagmi';
+import Link from 'next/link';
 
 const Header = () => {
-    const { address, isConnected } = useAccount();
-    const { connect, connectors } = useConnect();
-    const { disconnect } = useDisconnect();
-    const chainId = useChainId();
+    const {
+        isConnected,
+        chainId,
+        displayAddress,
+        connectWallet,
+        disconnectWallet
+    } = useWallet();
 
     const handleConnect = () => {
-        connect({ connector: connectors[0] }); // Use first available connector (MetaMask)
+        connectWallet();
     };
 
     const handleDisconnect = () => {
-        disconnect();
+        disconnectWallet();
     };
 
     const [scrolled, setScrolled] = useState(false);
@@ -34,15 +39,9 @@ const Header = () => {
         };
     }, []);
 
-    const displayAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
-
-    const getChainName = (chainId: number) => {
-        switch (chainId) {
-            case 1: return 'Ethereum';
-            case 137: return 'Polygon';
-            case 80002: return 'Polygon Amoy';
-            default: return 'Unknown';
-        }
+    const getChainName = (chainId: number): string => {
+        const chain = config.chains.find(c => c.id === chainId);
+        return chain?.name || 'Unknown';
     };
 
     const navLinks = [
@@ -67,10 +66,10 @@ const Header = () => {
                     style={{ animationDelay: '1s' }} />
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
 
                 {/* Logo */}
-                <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
+                <Link href="/" className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
                     <div className="relative">
                         <div
                             className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-500 via-purple-500 to-pink-500
@@ -95,22 +94,23 @@ const Header = () => {
                             <Sparkles className="absolute -top-1 -right-5 w-4 h-4 text-cyan-400 animate-pulse" />
                         )}
                     </div>
-                </div>
+                </Link>
 
                 {/* Desktop Navigation */}
                 <nav className="hidden lg:flex items-center gap-1">
                     {navLinks.map((link) => {
                         const Icon = link.icon;
                         return (
-                            <button
+                            <Link
                                 key={link.href}
+                                href={link.href}
                                 className="group relative px-4 py-2 text-sm text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2"
                             >
                                 <Icon className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
                                 <span>{link.label}</span>
                                 {/* Animated underline */}
                                 <span className="absolute bottom-0 left-4 w-0 h-[2px] bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-[calc(100%-32px)] transition-all duration-300" />
-                            </button>
+                            </Link>
                         );
                     })}
                 </nav>
@@ -190,15 +190,16 @@ const Header = () => {
                         {navLinks.map((link) => {
                             const Icon = link.icon;
                             return (
-                                <button
+                                <Link
                                     key={link.href}
+                                    href={link.href}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="group relative px-4 py-3 text-sm text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-3 hover:bg-slate-900/50 rounded-lg"
                                 >
                                     <Icon className="w-4 h-4 group-hover:text-cyan-400 transition-colors" />
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     {link.label}
-                                </button>
+                                </Link>
                             );
                         })}
 

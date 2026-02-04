@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Scale, Github, Twitter, Linkedin, Heart, Shield, BookOpen, Gavel } from 'lucide-react';
+import Link from 'next/link';
 
 const Footer = () => {
     return (
@@ -21,7 +22,7 @@ const Footer = () => {
             <div className="absolute bottom-0 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] animate-pulse-slow" style={{ animationDelay: '1.5s' }} />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-pink-500/5 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '3s' }} />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+            <div className="max-w-[1800px] mx-auto px-4 sm:px-6 relative z-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 sm:gap-8 mb-8 sm:mb-12">
 
                     {/* Brand Section */}
@@ -106,16 +107,16 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/courtroom" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Courtroom
-                                </button>
+                                </Link>
                             </li>
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/history" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Case History
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
@@ -140,10 +141,10 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/docs" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     Documentation
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
@@ -174,10 +175,10 @@ const Footer = () => {
                         </h4>
                         <ul className="space-y-2.5">
                             <li>
-                                <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
+                                <Link href="/about" className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">
                                     <span className="w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 group-hover:w-2 transition-all duration-300" />
                                     About Us
-                                </button>
+                                </Link>
                             </li>
                             <li>
                                 <button className="group text-sm sm:text-base text-slate-400 hover:text-cyan-300 transition-all duration-300 flex items-center gap-2">

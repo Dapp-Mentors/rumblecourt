@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import WagmiProviderWrapper from './components/WagmiProviderWrapper'
+import WagmiProviderWrapper from '../components/WagmiProviderWrapper'
 
 export const metadata: Metadata = {
   title: 'Rumble Court',
