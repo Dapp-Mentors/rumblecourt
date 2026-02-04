@@ -1,18 +1,15 @@
+// Courtroom Simulation Script
+// This script demonstrates how courtroom records will be documented on-chain
+// It simulates the complete workflow that the frontend will use during integration
+
 import hre from 'hardhat'
-import '@nomicfoundation/hardhat-ethers'
 import chalk from 'chalk'
 
-/**
- * RumbleCourt Simulation Script
- * Demonstrates the complete AI courtroom workflow on-chain
- * Shows how the frontend will interact with the minimal RumbleCourt contract
- */
-
 async function main(): Promise<void> {
-  console.log(chalk.bgBlue.white.bold('🏛️  RUMBLECOURT SIMULATION'))
-  console.log(chalk.blue('==========================='))
-  console.log('AI-Driven Courtroom Simulator - Blockchain Demo')
-  console.log('Recording trials, verdicts, and appeals immutably on-chain')
+  console.log(chalk.bgBlue.white.bold('🏛️  COURTROOM BLOCKCHAIN SIMULATION'))
+  console.log(chalk.blue('==========================================='))
+  console.log('Simulating how courtroom records are documented on-chain')
+  console.log('This demonstrates the frontend integration workflow')
   console.log('')
 
   // Get test accounts
