@@ -447,7 +447,7 @@ export const onCaseAppealed = async (
 // ============================================
 
 const formatCase = (caseData: unknown): Case => {
-  console.log('🔍 Formatting case, raw data:', caseData)
+  console.log('ðŸ” Formatting case, raw data:', caseData)
 
   // Define the shape of case data from contract
   interface RawCaseData {
