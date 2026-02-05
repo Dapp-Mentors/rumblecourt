@@ -16,7 +16,8 @@
     "test:coverage": "hardhat test --coverage",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy",
-    "node": "hardhat node"
+    "node": "hardhat node",
+    "test:opik": "node scripts/test-opik.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +30,7 @@
     "ethers": "^6.10.0",
     "lucide-react": "^0.563.0",
     "next": "^16.1.1",
+    "opik": "^1.10.5",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-markdown": "^10.1.0",

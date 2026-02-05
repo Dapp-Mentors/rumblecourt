@@ -87,8 +87,6 @@ interface CourtroomContextType {
   isProcessing: boolean;
   selectedTool: string | null;
   isSimulating: boolean;
-  simulationProgress: string;
-  abortSimulation: () => void;
 
   // MCP Tools
   courtroomTools: typeof rumbleCourtMcpTools;
@@ -160,38 +158,11 @@ Let's begin your blockchain legal journey!`,
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isSimulating, setIsSimulatingState] = useState(false);
-  const [simulationProgress, setSimulationProgress] = useState('');
-  const [shouldAbortSimulation, setShouldAbortSimulation] = useState(false);
-
-  const abortSimulation = (): void => {
-    setShouldAbortSimulation(true);
-    addMessage({
-      id: `abort-${Date.now()}`,
-      role: 'system',
-      content: '🛑 **SIMULATION ABORTED**\n\nThe courtroom simulation has been cancelled by user request.',
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    });
-  };
 
   // Simulation logic with real LLM agents
   const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
     setIsSimulatingState(true);
-    setIsProcessingState(true);
-    setShouldAbortSimulation(false);
-    setSimulationProgress('Initializing...');
     const debateHistory: Array<{ agent: string, message: string }> = [];
-
-    // Helper function to check for abort
-    const checkAbort = (): boolean => {
-      if (shouldAbortSimulation) {
-        setIsSimulatingState(false);
-        setIsProcessingState(false);
-        setSimulationProgress('');
-        return true;
-      }
-      return false;
-    };
 
     // First, check if there are any cases at all
     if (cases.length === 0) {
@@ -203,8 +174,6 @@ Let's begin your blockchain legal journey!`,
         timestampString: new Date().toLocaleTimeString()
       });
       setIsSimulatingState(false);
-      setIsProcessingState(false);
-      setSimulationProgress('');
       return;
     }
 
@@ -218,8 +187,6 @@ Let's begin your blockchain legal journey!`,
         timestampString: new Date().toLocaleTimeString()
       });
       setIsSimulatingState(false);
-      setIsProcessingState(false);
-      setSimulationProgress('');
       return;
     }
 
@@ -233,98 +200,51 @@ Let's begin your blockchain legal journey!`,
         timestampString: new Date().toLocaleTimeString()
       });
       setIsSimulatingState(false);
-      setIsProcessingState(false);
-      setSimulationProgress('');
       return;
     }
 
     // CRITICAL: Start the trial on-chain first (changes status from PENDING to IN_TRIAL)
     if (isOwner && currentCase) {
-      // Check if case is already in trial
-      if (currentCase.status === 'IN_TRIAL') {
+      try {
         addMessage({
-          id: `trial-${Date.now()}-already-in-trial`,
+          id: `trial-${Date.now()}-starting`,
           role: 'system',
-          content: 'ℹ️ **TRIAL ALREADY IN PROGRESS**\n\nThis case is already in trial. Continuing with the courtroom proceedings.',
+          content: '⚙️ **STARTING TRIAL ON BLOCKCHAIN...**\n\nUpdating case status to IN_TRIAL before the courtroom proceedings begin.',
           timestamp: new Date(),
           timestampString: new Date().toLocaleTimeString()
         });
-      } else if (currentCase.status === 'PENDING') {
-        try {
-          setSimulationProgress('Starting trial on blockchain...');
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Call start_trial to update blockchain status
+        const startTrialTool = courtroomTools.start_trial;
+        if (startTrialTool && typeof startTrialTool.execute === 'function') {
+          await startTrialTool.execute(
+            { caseId: currentCase.caseId },
+            { toolCallId: 'auto-start-trial', messages: [] }
+          );
+
           addMessage({
-            id: `trial-${Date.now()}-starting`,
+            id: `trial-${Date.now()}-started`,
             role: 'system',
-            content: '⚙️ **STARTING TRIAL ON BLOCKCHAIN...**\n\nUpdating case status to IN_TRIAL before the courtroom proceedings begin.',
+            content: '✅ **TRIAL STARTED ON BLOCKCHAIN**\n\nCase status updated to IN_TRIAL. The courtroom proceedings will now begin.',
             timestamp: new Date(),
             timestampString: new Date().toLocaleTimeString()
           });
 
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-          // Check for abort before calling blockchain method
-          if (checkAbort()) return;
-
-          // Call start_trial to update blockchain status
-          const startTrialTool = courtroomTools.start_trial;
-          if (startTrialTool && typeof startTrialTool.execute === 'function') {
-            await startTrialTool.execute(
-              { caseId: currentCase.caseId },
-              { toolCallId: 'auto-start-trial', messages: [] }
-            );
-
-            addMessage({
-              id: `trial-${Date.now()}-started`,
-              role: 'system',
-              content: '✅ **TRIAL STARTED ON BLOCKCHAIN**\n\nCase status updated to IN_TRIAL. The courtroom proceedings will now begin.',
-              timestamp: new Date(),
-              timestampString: new Date().toLocaleTimeString()
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } catch (error) {
-          console.error('Failed to start trial on blockchain:', error);
-
-          // Check if error is due to user rejection
-          const errorMessage = (error as Error).message.toLowerCase();
-          const isUserRejection = errorMessage.includes('user rejected') ||
-            errorMessage.includes('user denied') ||
-            errorMessage.includes('rejected by user') ||
-            errorMessage.includes('user cancelled');
-
-          if (isUserRejection) {
-            addMessage({
-              id: `trial-${Date.now()}-cancelled`,
-              role: 'system',
-              content: '🚫 **TRIAL SIMULATION CANCELLED**\n\nYou rejected the transaction to start the trial. The simulation has been aborted.\n\nYou can try again when ready.',
-              timestamp: new Date(),
-              timestampString: new Date().toLocaleTimeString()
-            });
-          } else {
-            addMessage({
-              id: `trial-${Date.now()}-start-error`,
-              role: 'system',
-              content: `⚠️ **TRIAL START FAILED**\n\nCould not update case status on blockchain. Error: ${(error as Error).message}\n\nThe simulation has been aborted.`,
-              timestamp: new Date(),
-              timestampString: new Date().toLocaleTimeString()
-            });
-          }
-
-          setIsSimulatingState(false);
-          setIsProcessingState(false);
-          setSimulationProgress('');
-          return; // Stop if we can't start the trial
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-      } else {
-        // Case is already completed or appealed, continue with simulation but don't try to start trial
+      } catch (error) {
+        console.error('Failed to start trial on blockchain:', error);
         addMessage({
-          id: `trial-${Date.now()}-case-status`,
+          id: `trial-${Date.now()}-start-error`,
           role: 'system',
-          content: `ℹ️ **CASE STATUS: ${currentCase.status}**\n\nThe case is already ${currentCase.status.toLowerCase()}. Continuing with the courtroom proceedings.`,
+          content: `⚠️ **TRIAL START FAILED**\n\nCould not update case status on blockchain. Error: ${(error as Error).message}\n\nThe simulation will continue off-chain, but the verdict cannot be recorded.`,
           timestamp: new Date(),
           timestampString: new Date().toLocaleTimeString()
         });
+        setIsSimulatingState(false);
+        return; // Stop if we can't start the trial
       }
     } else if (!isOwner) {
       addMessage({
@@ -337,9 +257,6 @@ Let's begin your blockchain legal journey!`,
       // Continue with off-chain simulation for non-owners
     }
 
-    // Check for abort
-    if (checkAbort()) return;
-
     // Import agent library dynamically to avoid circular dependencies
     const {
       AGENT_PROFILES,
@@ -350,7 +267,6 @@ Let's begin your blockchain legal journey!`,
     } = await import('../lib/llm-agents');
 
     // Courtroom opening
-    setSimulationProgress('Judge opening session...');
     const judgeProfile = AGENT_PROFILES['judge'];
     const openingPrompt = generateAgentPrompt(
       judgeProfile,
@@ -359,8 +275,6 @@ Let's begin your blockchain legal journey!`,
       debateHistory
     );
     const openingMessage = await callLLMAgent('judge', openingPrompt, judgeProfile.systemPrompt);
-
-    if (checkAbort()) return;
 
     addMessage({
       id: `trial-${Date.now()}-opening`,
@@ -375,18 +289,12 @@ ${openingMessage}`,
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: openingMessage });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    if (checkAbort()) return;
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
 
     // Main debate
-    for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) {
-      if (checkAbort()) return;
-
+    for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) { // Skip judge opening, deliberation, and verdict
       const turn = DEBATE_STRUCTURE[i];
       const profile = AGENT_PROFILES[turn.agent];
-
-      setSimulationProgress(`${turn.agent === 'prosecution' ? 'Prosecution' : 'Defense'} presenting arguments... (${i}/${DEBATE_STRUCTURE.length - 3})`);
 
       const prompt = generateAgentPrompt(
         profile,
@@ -397,8 +305,6 @@ ${openingMessage}`,
 
       const response = await callLLMAgent(turn.agent, prompt, profile.systemPrompt);
 
-      if (checkAbort()) return;
-
       addMessage({
         id: `trial-${Date.now()}-${turn.agent}-${i}`,
         role: turn.agent,
@@ -408,13 +314,12 @@ ${openingMessage}`,
       });
 
       debateHistory.push({ agent: turn.agent, message: response });
+
+      // Add turn delay for realistic pacing - Reduced from 2500-4000ms to 1000-2000ms
       await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
     }
 
-    if (checkAbort()) return;
-
     // Judge deliberation
-    setSimulationProgress('Judge deliberating...');
     const deliberationPrompt = generateAgentPrompt(
       judgeProfile,
       caseTitle,
@@ -422,8 +327,6 @@ ${openingMessage}`,
       debateHistory
     ) + "\n\n**CRITICAL: Keep your deliberation CONCISE - maximum 150 words. Focus on key points only.**";
     const deliberationMessage = await callLLMAgent('judge', deliberationPrompt, judgeProfile.systemPrompt);
-
-    if (checkAbort()) return;
 
     addMessage({
       id: `trial-${Date.now()}-judge-deliberation`,
@@ -433,12 +336,9 @@ ${openingMessage}`,
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: deliberationMessage });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    if (checkAbort()) return;
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Reduced from 4000
 
     // Verdict
-    setSimulationProgress('Judge delivering verdict...');
     const verdictPrompt = `Please deliver a final verdict based on the complete trial proceedings:
 
 ${formatDebateHistory(debateHistory)}
@@ -455,8 +355,6 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
     const verdictMessage = await callLLMAgent('judge', verdictPrompt, judgeProfile.systemPrompt);
 
-    if (checkAbort()) return;
-
     addMessage({
       id: `trial-${Date.now()}-verdict`,
       role: 'judge',
@@ -465,12 +363,9 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       timestampString: new Date().toLocaleTimeString()
     });
     debateHistory.push({ agent: 'judge', message: verdictMessage });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    if (checkAbort()) return;
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
 
     // Closing
-    setSimulationProgress('Closing session...');
     const closingPrompt = generateAgentPrompt(
       judgeProfile,
       caseTitle,
@@ -478,8 +373,6 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       debateHistory
     ) + "\n\n**CRITICAL: Keep your closing statement BRIEF - maximum 100 words.**";
     const closingMessage = await callLLMAgent('judge', closingPrompt, judgeProfile.systemPrompt);
-
-    if (checkAbort()) return;
 
     addMessage({
       id: `trial-${Date.now()}-closing`,
@@ -491,12 +384,12 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
     debateHistory.push({ agent: 'judge', message: closingMessage });
 
     // Extract verdict type from the verdict message
-    const verdictType = verdictMessage.toUpperCase().includes('GUILTY') && !verdictMessage.toUpperCase().includes('NOT GUILTY') ? 0 : 1;
+    const verdictType = verdictMessage.toUpperCase().includes('GUILTY') && !verdictMessage.toUpperCase().includes('NOT GUILTY') ? 0 : 1; // 0 = GUILTY, 1 = NOT_GUILTY
 
     // Record verdict on blockchain automatically (only if user is owner)
-    if (isOwner && currentCase && !shouldAbortSimulation) {
+    // Note: We already checked that status is not COMPLETED at the start of simulateTrial
+    if (isOwner && currentCase) {
       try {
-        setSimulationProgress('Recording verdict on blockchain...');
         addMessage({
           id: `trial-${Date.now()}-recording`,
           role: 'system',
@@ -507,15 +400,14 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        if (checkAbort()) return;
-
+        // Call the record_verdict tool
         const recordVerdictTool = courtroomTools.record_verdict;
         if (recordVerdictTool && typeof recordVerdictTool.execute === 'function') {
           await recordVerdictTool.execute(
             {
               caseId: currentCase.caseId,
               verdictType: verdictType,
-              reasoning: verdictMessage.substring(0, 500),
+              reasoning: verdictMessage.substring(0, 500), // Truncate to reasonable length
               isFinal: true
             },
             { toolCallId: 'auto-verdict-recording', messages: [] }
@@ -529,6 +421,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
             timestampString: new Date().toLocaleTimeString()
           });
 
+          // Reload cases to show updated status
           setTimeout(async (): Promise<void> => {
             try {
               const userCasesTool = courtroomTools.get_user_cases;
@@ -549,30 +442,13 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
         }
       } catch (error) {
         console.error('Failed to record verdict on blockchain:', error);
-
-        const errorMessage = (error as Error).message.toLowerCase();
-        const isUserRejection = errorMessage.includes('user rejected') ||
-          errorMessage.includes('user denied') ||
-          errorMessage.includes('rejected by user') ||
-          errorMessage.includes('user cancelled');
-
-        if (isUserRejection) {
-          addMessage({
-            id: `trial-${Date.now()}-verdict-cancelled`,
-            role: 'system',
-            content: '🚫 **VERDICT RECORDING CANCELLED**\n\nYou rejected the transaction to record the verdict. The trial concluded off-chain, but the verdict was not saved to the blockchain.\n\nYou can manually record it later using the record_verdict tool.',
-            timestamp: new Date(),
-            timestampString: new Date().toLocaleTimeString()
-          });
-        } else {
-          addMessage({
-            id: `trial-${Date.now()}-error`,
-            role: 'system',
-            content: `⚠️ **VERDICT RECORDING FAILED**\n\nThe verdict could not be recorded on the blockchain. Error: ${(error as Error).message}\n\nYou can manually record the verdict using the record_verdict tool.`,
-            timestamp: new Date(),
-            timestampString: new Date().toLocaleTimeString()
-          });
-        }
+        addMessage({
+          id: `trial-${Date.now()}-error`,
+          role: 'system',
+          content: `⚠️ **VERDICT RECORDING FAILED**\n\nThe verdict could not be recorded on the blockchain. Error: ${(error as Error).message}\n\nYou can manually record the verdict using the record_verdict tool.`,
+          timestamp: new Date(),
+          timestampString: new Date().toLocaleTimeString()
+        });
       }
     } else if (!isOwner) {
       addMessage({
@@ -585,9 +461,6 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
     }
 
     setIsSimulatingState(false);
-    setIsProcessingState(false);
-    setSimulationProgress('');
-    setShouldAbortSimulation(false);
   };
 
   // Update wallet context and check owner status when wallet changes
@@ -641,6 +514,8 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
   const setCurrentCase = (caseId: string | null): void => {
     if (caseId) {
+      // Cases have both an 'id' field (string) and 'caseId' field (bigint)
+      // Try matching against both for flexibility
       const selected = cases.find(c =>
         c.id === caseId || c.caseId.toString() === caseId
       );
@@ -763,6 +638,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       outputData = toolOutput as Record<string, unknown>;
     }
 
+    // Handle errors
     if ('error' in outputData) {
       lines.push('');
       lines.push(`### ❌ Error`);
@@ -772,6 +648,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       return lines.join('\n');
     }
 
+    // Handle unsuccessful operations
     if ('success' in outputData && !outputData.success) {
       lines.push('');
       lines.push(`### ⚠️ Operation Failed`);
@@ -783,6 +660,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       return lines.join('\n');
     }
 
+    // Success message
     lines.push('');
     lines.push('### ✅ Operation Successful');
     lines.push('');
@@ -792,6 +670,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       lines.push('');
     }
 
+    // Transaction details
     if ('transactionHash' in outputData && outputData.transactionHash) {
       lines.push(`🔗 **Transaction Hash**: \`${outputData.transactionHash}\``);
     }
@@ -804,6 +683,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       lines.push(`📋 **Case ID**: \`${outputData.caseId}\``);
     }
 
+    // Case details
     if ('case' in outputData && typeof outputData.case === 'object') {
       const caseData = outputData.case as Record<string, unknown>;
       lines.push('');
@@ -814,6 +694,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       });
     }
 
+    // Verdict details
     if ('verdict' in outputData && typeof outputData.verdict === 'object') {
       const verdict = outputData.verdict as Record<string, unknown>;
       lines.push('');
@@ -824,6 +705,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       });
     }
 
+    // Next steps
     if ('nextSteps' in outputData && outputData.nextSteps) {
       lines.push('');
       lines.push('### 🎯 Next Steps');
@@ -831,6 +713,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       lines.push(`${outputData.nextSteps}`);
     }
 
+    // Additional details
     const displayedKeys = ['success', 'message', 'transactionHash', 'blockNumber', 'caseId', 'case', 'verdict', 'nextSteps', 'error'];
     const remainingKeys = Object.keys(outputData).filter(key => !displayedKeys.includes(key));
 
@@ -841,6 +724,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
       remainingKeys.forEach(key => {
         const value = outputData[key];
         if (typeof value === 'object' && value !== null) {
+          // Handle BigInt serialization
           const serializedValue = JSON.stringify(value, (key, val) => {
             if (typeof val === 'bigint') {
               return val.toString();
@@ -902,6 +786,7 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
     setMessagesState(prev => [...prev, userMessage]);
 
     try {
+      // Use OpenRouter API for command processing
       const response = await processCommandWithOpenRouter(command);
 
       const assistantMessage: ChatMessage = {
@@ -1265,6 +1150,7 @@ When user says "use these scriptures" or "use this information":
     const toolName = toolCall.function.name;
     const toolArgs = JSON.parse(toolCall.function.arguments || '{}') as Record<string, unknown>;
 
+    // Convert string numbers to BigInt for caseId parameters
     if ('caseId' in toolArgs && typeof toolArgs.caseId === 'string') {
       toolArgs.caseId = BigInt(toolArgs.caseId);
     } else if ('caseId' in toolArgs && typeof toolArgs.caseId === 'number') {
@@ -1295,8 +1181,10 @@ When user says "use these scriptures" or "use this information":
         toolOutput = str;
       }
 
+      // Reload cases after operations that modify case state
       const caseModifyingTools = ['file_case', 'start_trial', 'record_verdict', 'appeal_case'];
       if (caseModifyingTools.includes(toolName) && isConnected && address) {
+        // Small delay to ensure blockchain state is updated
         setTimeout(async () => {
           try {
             const userCasesTool = courtroomTools.get_user_cases;
@@ -1348,8 +1236,6 @@ When user says "use these scriptures" or "use this information":
     isProcessing,
     selectedTool,
     isSimulating,
-    simulationProgress,
-    abortSimulation,
 
     // MCP Tools
     courtroomTools,

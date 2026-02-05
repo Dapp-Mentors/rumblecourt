@@ -1,4 +1,10 @@
+// lib/llm-agents.ts
+// Tracing is now handled entirely in CourtroomContext.tsx via the client tracer proxy
+
 // LLM Agent Profiles with distinct personalities
+// import { createCourtroomTracer } from './opik-client'
+// import type { CourtroomMetadata } from './opik-client' // Only if you still want the type (optional)
+
 export interface AgentProfile {
   role: 'prosecution' | 'defense' | 'judge'
   name: string
@@ -246,18 +252,16 @@ ${historyContext}Please respond appropriately to continue the legal proceeding.`
   return caseContext
 }
 
-// Simple mock LLM call for development/testing (will connect to real LLM in production)
+// Simple mock LLM call for development/testing
 export const simulateAgentResponse = async (
   agent: 'prosecution' | 'defense' | 'judge',
 ): Promise<string> => {
-  // Simulate network delay
   await new Promise((resolve) =>
     setTimeout(resolve, 1500 + Math.random() * 2000),
   )
 
   const agentName = AGENT_PROFILES[agent].name
 
-  // Mock responses based on agent personality and prompt context
   if (agent === 'prosecution') {
     const responses = [
       `Your Honor, ${agentName} for the prosecution. The evidence clearly shows a pattern of behavior that violates the terms of the agreement. The digital records from ${new Date().toLocaleDateString()} demonstrate intentional disregard for contractual obligations.`,
@@ -291,7 +295,7 @@ export const simulateAgentResponse = async (
   return 'I need to review the evidence before making a ruling.'
 }
 
-// Real LLM integration function (using OpenRouter API)
+// Real LLM integration function (Opik tracing removed - now handled in simulateTrial)
 export const callLLMAgent = async (
   agent: 'prosecution' | 'defense' | 'judge',
   prompt: string,
@@ -299,10 +303,9 @@ export const callLLMAgent = async (
 ): Promise<string> => {
   const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
 
-  // Fallback to simulation if API key not configured
   if (!apiKey) {
     console.warn('OpenRouter API key not configured, using simulation')
-    return simulateAgentResponse(agent)
+    return await simulateAgentResponse(agent)
   }
 
   try {
@@ -329,7 +332,7 @@ export const callLLMAgent = async (
               content: prompt,
             },
           ],
-          max_tokens: 400, // Reduced from 500 to enforce brevity
+          max_tokens: 400,
           temperature: agent === 'judge' ? 0.3 : 0.7,
         }),
       },
@@ -341,18 +344,13 @@ export const callLLMAgent = async (
       throw new Error(data.error?.message || 'API error')
     }
 
-    return (
-      data.choices[0].message.content?.trim() ||
-      'I need to review the evidence before responding.'
-    )
+    return data.choices[0].message.content?.trim() || 'No response.'
   } catch (error) {
     console.error('LLM call failed:', error)
-    // Fallback to simulation on error
-    return simulateAgentResponse(agent)
+    return await simulateAgentResponse(agent)
   }
 }
 
-// Helper function to format conversation history for LLM context
 export const formatDebateHistory = (
   turns: Array<{ agent: string; message: string }>,
 ) => {
@@ -364,7 +362,6 @@ export const formatDebateHistory = (
     .join('\n')
 }
 
-// Function to determine next speaker in the debate
 export const getNextSpeaker = (
   currentTurn: number,
   debateStructure: DebateTurn[],
@@ -372,5 +369,5 @@ export const getNextSpeaker = (
   if (currentTurn < debateStructure.length) {
     return debateStructure[currentTurn].agent
   }
-  return 'judge' // Default to judge for final verdict
+  return 'judge'
 }
