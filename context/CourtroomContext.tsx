@@ -122,6 +122,14 @@ interface CourtroomProviderProps {
   children: ReactNode;
 }
 
+// Helper function to serialize BigInt values for JSON
+const bigIntReplacer = (key: string, value: unknown): unknown => {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+  return value;
+};
+
 export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }) => {
   const { isConnected, address } = useWallet();
 
@@ -163,7 +171,7 @@ Let's begin your blockchain legal journey!`,
   const [isOwner, setIsOwner] = useState(false);
   const [isSimulating, setIsSimulatingState] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState<string>('');
-  
+
   // Use ref for immediate abort flag access
   const isSimulationAbortedRef = useRef(false);
 
@@ -178,7 +186,7 @@ Let's begin your blockchain legal journey!`,
       timestamp: new Date(),
       timestampString: new Date().toLocaleTimeString()
     });
-    
+
     // Clear any pending messages that might be in the queue
     setMessagesState(prev => {
       const lastAbortIndex = prev.findIndex(msg => msg.content.includes('SIMULATION ABORTED'));
@@ -525,10 +533,6 @@ Let's begin your blockchain legal journey!`,
     }
   };
 
-  // [REST OF THE FILE REMAINS THE SAME - keeping all other functions identical]
-  // Including: setCurrentCase, addMessage, setMessages, setIsProcessing, setSelectedTool,
-  // loadUserCases, checkOwnership, processCommand, callAIAssistant, handleToolCall, etc.
-
   // Helper functions
   const setCurrentCase = (caseId: string | null): void => {
     if (caseId === null) {
@@ -652,12 +656,7 @@ Let's begin your blockchain legal journey!`,
       }
     }
 
-    return JSON.stringify(toolOutput, (key, val) => {
-      if (typeof val === 'bigint') {
-        return val.toString();
-      }
-      return val;
-    }, 2);
+    return JSON.stringify(toolOutput, bigIntReplacer, 2);
   };
 
   const processCommand = async (userInput: string): Promise<void> => {
@@ -849,42 +848,51 @@ Let's begin your blockchain legal journey!`,
   const callAIAssistant = async (userInput: string): Promise<string> => {
     const tools = generateToolDefinitions();
 
-    const systemPrompt = `You are a friendly and helpful AI legal assistant for RumbleCourt, a blockchain-based courtroom simulation platform.
+    const systemPrompt = `You are an AI legal assistant for RumbleCourt. Your PRIMARY job is to call tools, NOT to chat.
 
-**CRITICAL RULES:**
-1. ALWAYS be concise - use 2-4 sentences maximum for most responses
-2. Break complex information into digestible chunks
-3. Use natural, conversational language - avoid overly formal legal jargon
-4. Be encouraging and supportive, especially for first-time users
-5. When providing instructions, use clear numbered steps
-6. Avoid overwhelming users with too much information at once
+**🚨 CRITICAL INSTRUCTION 🚨**
+YOU MUST CALL TOOLS IMMEDIATELY. DO NOT ASK QUESTIONS. DO NOT REQUEST CLARIFICATION.
 
-**Your role:**
-- Guide users through filing cases, viewing verdicts, and understanding the RumbleCourt process
-- Explain legal concepts in simple, accessible terms
-- Help users navigate the blockchain aspects of the platform
-- Call the appropriate MCP tools when users want to perform actions
+**MANDATORY TOOL CALLING:**
 
-**Current context:**
-- User is ${isConnected ? 'connected' : 'not connected'} to a wallet
-- User has ${cases.length} case(s) filed
-- Current selected case: ${currentCase ? `"${currentCase.caseTitle}" (Status: ${currentCase.status})` : 'None'}
-- User ${isOwner ? 'IS' : 'IS NOT'} the system owner
+1. User mentions "file" or "case" → CALL file_case NOW
+   Example: "File a case about X" → Call file_case(caseTitle="X Dispute", evidenceHash="Relevant evidence regarding X")
+   Example: "Can you file me a case about Israel vs Palestine" → Call file_case(caseTitle="Historical Land Rights: Israel vs Palestine Territorial Dispute", evidenceHash="Historical records, UN documents, archaeological evidence, and international legal precedents")
+   
+2. User mentions "show" or "view" or "get" + "cases" → CALL get_user_cases NOW
+   Example: "Show my cases" → Call get_user_cases()
+   Example: "What cases do I have" → Call get_user_cases()
+   
+3. User mentions "case" + number → CALL get_case NOW
+   Example: "Show case 5" → Call get_case(caseId="5")
 
-**Available MCP tools you can call:**
-${tools.map(t => `- ${t.function.name}: ${t.function.description}`).join('\n')}
+4. User says "start trial" → CALL start_trial NOW (owner only)
 
-**Response guidelines:**
-1. If the user asks to file a case → call file_case tool
-2. If the user asks about their cases → call get_user_cases tool
-3. If the user asks about a specific case → call get_case tool
-4. If the user wants to start a trial (and is owner) → call start_trial tool
-5. For general questions → provide a brief, helpful answer without calling tools
-6. When suggesting next steps, be specific and actionable
+5. User says "proceed" or "go ahead" or "do it" → Analyze previous context and call the MOST RELEVANT tool
 
-**Tone:** Friendly, encouraging, and clear. Think of yourself as a helpful guide, not a formal legal advisor.
+**PARAMETER INFERENCE RULES:**
+- If case title is vague → Create a professional title from context
+- If evidence is missing → Generate reasonable evidence description  
+- NEVER say "I need more information"
+- NEVER ask "What would you like to call it?"
+- ACT FIRST, explain later (in 1 sentence)
 
-Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up questions if they need more detail.`;
+**State:**
+- Wallet: ${isConnected ? `✅ CONNECTED (${address})` : '❌ NOT CONNECTED'}
+- Cases: ${cases.length}
+- Current: ${currentCase ? `"${currentCase.caseTitle}" (${currentCase.status})` : 'None'}
+- Role: ${isOwner ? '👑 OWNER' : '👤 USER'}
+
+**CRITICAL:** If wallet is NOT connected and user tries to file → Say "Please connect your wallet first" (1 sentence only)
+
+**YOUR BEHAVIOR:**
+❌ WRONG: "I can help you file a case! What would you like to name it?"
+✅ CORRECT: [Calls file_case immediately] "Filing your case now..."
+
+❌ WRONG: "To file a case, I need the title and evidence. What details can you provide?"
+✅ CORRECT: [Calls file_case with inferred parameters] "Case filed!"
+
+REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
 
     try {
       const conversationMessages: OpenAIMessage[] = [
@@ -906,6 +914,50 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
           return 'Sorry, the AI service is not configured. Please check your API key settings.';
         }
 
+        // Determine if we should force tool usage based on user input
+        const inputLower = userInput.toLowerCase();
+        const shouldForceToolUse =
+          inputLower.includes('file') ||
+          inputLower.includes('create') ||
+          inputLower.includes('show') ||
+          inputLower.includes('view') ||
+          inputLower.includes('get') ||
+          inputLower.includes('start') ||
+          inputLower.includes('record') ||
+          inputLower.includes('appeal') ||
+          inputLower.includes('case');
+
+        // Build the request with intelligent tool_choice
+        // NOTE: Free models don't support 'required', only 'auto' or 'none'
+
+        // Try using a better model first, fallback to free if API key issues
+        const modelToUse = "arcee-ai/trinity-large-preview:free";
+
+        // Uncomment to use a better model (requires credits on OpenRouter):
+        // modelToUse = "anthropic/claude-3.5-sonnet";
+        // modelToUse = "openai/gpt-4-turbo";
+
+        const requestBody: Record<string, unknown> = {
+          model: modelToUse,
+          messages: conversationMessages,
+          tools,
+          // Always use 'auto' - free models don't support 'required'
+          tool_choice: 'auto',
+        };
+
+        console.log('[AI Request]', {
+          iteration: iterations,
+          model: modelToUse,
+          messageCount: conversationMessages.length,
+          toolChoice: requestBody.tool_choice,
+          shouldForceToolUse,
+          userInputHints: {
+            hasFile: inputLower.includes('file'),
+            hasShow: inputLower.includes('show'),
+            hasCase: inputLower.includes('case'),
+          }
+        });
+
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -914,12 +966,7 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
             'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://rumblecourt.ai',
             'X-Title': 'RumbleCourt AI',
           },
-          body: JSON.stringify({
-            model: "arcee-ai/trinity-large-preview:free",
-            messages: conversationMessages,
-            tools,
-            tool_choice: 'auto',
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -937,6 +984,24 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
         const message = choice.message;
         const endTime = Date.now();
         const latency = endTime - startTime;
+
+        // Log what the AI is doing for debugging
+        console.log('[AI Response]', {
+          iteration: iterations,
+          hasContent: !!message.content,
+          hasToolCalls: !!message.tool_calls,
+          toolCount: message.tool_calls?.length || 0,
+          toolNames: message.tool_calls?.map(tc => tc.function.name) || [],
+          finishReason: choice.finish_reason,
+          latency_ms: latency
+        });
+
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          console.log('[AI Tool Calls]', message.tool_calls.map(tc => ({
+            name: tc.function.name,
+            args: tc.function.arguments
+          })));
+        }
 
         if (opikTracer && message.content) {
           opikTracer.logLLMInteraction(
@@ -1008,7 +1073,7 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
     const toolArgs = JSON.parse(toolCall.function.arguments || '{}') as Record<string, unknown>;
     const toolStartTime = Date.now();
 
-    console.log(`[Tool Call] 🔧 Executing: ${toolName}`, toolArgs);
+    console.log(`[Tool Call] 🔧 Executing: ${toolName}`, JSON.parse(JSON.stringify(toolArgs, bigIntReplacer)));
 
     if ('caseId' in toolArgs && typeof toolArgs.caseId === 'string') {
       toolArgs.caseId = BigInt(toolArgs.caseId);
@@ -1076,12 +1141,12 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
     if (opikTracer) {
       const toolOutputStr = typeof toolOutput === 'string'
         ? toolOutput
-        : JSON.stringify(toolOutput);
+        : JSON.stringify(toolOutput, bigIntReplacer);
 
       opikTracer.logLLMInteraction(
         'judge',
         `tool_${toolName}`,
-        JSON.stringify(toolArgs, (key, val) => typeof val === 'bigint' ? val.toString() : val),
+        JSON.stringify(toolArgs, bigIntReplacer),
         toolOutputStr,
         {
           tool_name: toolName,
@@ -1097,12 +1162,7 @@ Keep responses SHORT and CONVERSATIONAL. Users can always ask follow-up question
 
     const toolContent = typeof toolOutput === 'string'
       ? toolOutput
-      : JSON.stringify(toolOutput, (key, val) => {
-        if (typeof val === 'bigint') {
-          return val.toString();
-        }
-        return val;
-      }, 2);
+      : JSON.stringify(toolOutput, bigIntReplacer, 2);
 
     conversationMessages.push({
       role: 'tool',
