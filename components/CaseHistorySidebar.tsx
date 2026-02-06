@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { FolderOpen, FileText, Calendar, Clock, CheckCircle2, XCircle, MinusCircle, Loader2 } from 'lucide-react';
-import { Case, CaseStatus } from './types';
+import { Case, CaseStatus, VerdictType } from './types';
 
 interface CaseHistorySidebarProps {
   cases: Case[];
@@ -8,6 +8,38 @@ interface CaseHistorySidebarProps {
   onSelectCase: (caseId: string) => void;
   onRefresh?: () => void; // Add refresh callback
 }
+
+// Helper function to get verdict color
+const getVerdictColor = (verdictType: VerdictType) => {
+  switch (verdictType) {
+    case VerdictType.GUILTY:
+      return 'bg-red-500/20 text-red-300 border-red-500/30';
+    case VerdictType.NOT_GUILTY:
+      return 'bg-green-500/20 text-green-300 border-green-500/30';
+    case VerdictType.SETTLEMENT:
+      return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+    case VerdictType.DISMISSED:
+      return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+    default:
+      return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+  }
+};
+
+// Helper function to get verdict label
+const getVerdictLabel = (verdictType: VerdictType) => {
+  switch (verdictType) {
+    case VerdictType.GUILTY:
+      return 'GUILTY';
+    case VerdictType.NOT_GUILTY:
+      return 'NOT GUILTY';
+    case VerdictType.SETTLEMENT:
+      return 'SETTLEMENT';
+    case VerdictType.DISMISSED:
+      return 'DISMISSED';
+    default:
+      return 'UNKNOWN';
+  }
+};
 
 const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
   cases,
@@ -177,10 +209,17 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
                 </div>
 
                 {/* Status Badge */}
-                <div className="flex items-center">
+                <div className="flex items-center gap-1">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${getStatusColor(case_.status)}`}>
                     {getStatusLabel(case_.status)}
                   </span>
+
+                  {/* Verdict Badge for Completed Cases */}
+                  {case_.status === 'COMPLETED' && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${getVerdictColor(VerdictType.GUILTY)}`}>
+                      {getVerdictLabel(VerdictType.GUILTY)}
+                    </span>
+                  )}
                 </div>
               </button>
             );

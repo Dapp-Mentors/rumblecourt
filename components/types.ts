@@ -101,6 +101,11 @@ export interface CaseDisplay {
   }
 }
 
+// Enhanced Case interface with verdict information
+export interface CaseWithVerdict extends Case {
+  verdict?: Verdict
+}
+
 // MCP Tool parameter types
 export interface FileCaseParams {
   caseTitle: string

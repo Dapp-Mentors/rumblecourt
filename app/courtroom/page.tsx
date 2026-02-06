@@ -71,9 +71,6 @@ const CompactHeader = ({ onToggleTheaterMode, isTheaterMode }: { onToggleTheater
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Scale className="w-6 h-6 text-cyan-400" />
-            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              RumbleCourt AI
-            </h1>
           </div>
           <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
