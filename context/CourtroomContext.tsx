@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useWallet } from './WalletContext';
 import { rumbleCourtMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
 // import { config } from '../lib/wagmi';
@@ -163,10 +163,30 @@ Let's begin your blockchain legal journey!`,
   const [isOwner, setIsOwner] = useState(false);
   const [isSimulating, setIsSimulatingState] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState<string>('');
+  
+  // Use ref for immediate abort flag access
+  const isSimulationAbortedRef = useRef(false);
 
   const abortSimulation = (): void => {
+    isSimulationAbortedRef.current = true;
     setIsSimulatingState(false);
     setSimulationProgress('');
+    addMessage({
+      id: `abort-${Date.now()}`,
+      role: 'system',
+      content: '🛑 **SIMULATION ABORTED**',
+      timestamp: new Date(),
+      timestampString: new Date().toLocaleTimeString()
+    });
+    
+    // Clear any pending messages that might be in the queue
+    setMessagesState(prev => {
+      const lastAbortIndex = prev.findIndex(msg => msg.content.includes('SIMULATION ABORTED'));
+      if (lastAbortIndex !== -1) {
+        return prev.slice(0, lastAbortIndex + 1);
+      }
+      return prev;
+    });
   };
 
   // Initialize tracer when component mounts OR when currentCase changes
@@ -242,6 +262,7 @@ Let's begin your blockchain legal journey!`,
 
   const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
     setIsSimulatingState(true);
+    isSimulationAbortedRef.current = false; // Reset abort flag when simulation starts
     const debateHistory: Array<{ agent: string, message: string }> = [];
 
     // Initialize Opik tracer
@@ -306,6 +327,13 @@ Let's begin your blockchain legal journey!`,
       let finalVerdict: { verdict: 'GUILTY' | 'NOT_GUILTY' | null; reasoning: string } | null = null;
 
       for (let i = 0; i < DEBATE_STRUCTURE.length; i++) {
+        // Check if simulation has been aborted before each step
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
+
         const turn = DEBATE_STRUCTURE[i];
         const agent = turn.agent;
         const agentProfile = AGENT_PROFILES[agent];
@@ -344,6 +372,13 @@ Let's begin your blockchain legal journey!`,
           4. Provide a brief summary of your reasoning (2-3 sentences).`;
         }
 
+        // Check abort flag again before calling LLM (in case it was set during the prompt generation)
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted before LLM call');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
+
         // Call LLM
         const response = await callLLMAgent(
           agent,
@@ -353,7 +388,21 @@ Let's begin your blockchain legal journey!`,
           turn.messageType
         );
 
+        // Check abort flag immediately after LLM call
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted after LLM call');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
+
         debateHistory.push({ agent, message: response });
+
+        // Check abort flag before adding message to state
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted before adding message');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
 
         addMessage({
           id: `trial-${Date.now()}-${agent}-${i}`,
@@ -369,7 +418,41 @@ Let's begin your blockchain legal journey!`,
           console.log('[Simulation] 📊 Extracted verdict:', finalVerdict);
         }
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Check abort flag before delay
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted before delay');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
+
+        // Delay with abort checking
+        await new Promise((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (isSimulationAbortedRef.current) {
+              clearInterval(checkInterval);
+              resolve(null);
+            }
+          }, 100); // Check every 100ms during delay
+
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            resolve(null);
+          }, 1000);
+        });
+
+        // Check abort flag after delay
+        if (isSimulationAbortedRef.current) {
+          console.log('[Simulation] 🔴 Simulation aborted after delay');
+          tracer.endTrace({ status: 'aborted', debateTurns: i });
+          return;
+        }
+      }
+
+      // Check if simulation was aborted during the last turn
+      if (isSimulationAbortedRef.current) {
+        console.log('[Simulation] 🔴 Simulation aborted');
+        tracer.endTrace({ status: 'aborted', debateTurns: DEBATE_STRUCTURE.length });
+        return;
       }
 
       // --- Verdict Recording ---
@@ -460,6 +543,11 @@ Let's begin your blockchain legal journey!`,
   };
 
   const addMessage = (message: ChatMessage): void => {
+    // Check abort flag before adding any message
+    if (isSimulationAbortedRef.current && message.role !== 'system' && !message.content.includes('SIMULATION ABORTED')) {
+      console.log('[addMessage] 🔴 Blocking message due to abort flag:', message.role);
+      return;
+    }
     setMessagesState(prev => [...prev, message]);
   };
 

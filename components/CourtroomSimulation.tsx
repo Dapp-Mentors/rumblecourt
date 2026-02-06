@@ -102,9 +102,8 @@ const CourtroomSimulation: React.FC = () => {
   };
 
   const handleAbortSimulation = (): void => {
-    if (window.confirm('Are you sure you want to cancel the ongoing courtroom simulation?')) {
-      abortSimulation();
-    }
+    // Immediately abort without confirmation to prevent race conditions
+    abortSimulation();
   };
 
   return (
