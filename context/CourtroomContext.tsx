@@ -641,22 +641,310 @@ Let's begin your blockchain legal journey!`,
     return result;
   };
 
-  const formatToolResponse = (toolName: string, toolArgs: Record<string, unknown>, toolOutput: unknown): string => {
-    if (typeof toolOutput === 'string') {
-      return toolOutput;
+  const formatToolResponse = (
+    toolName: string,
+    toolArgs: Record<string, unknown>,
+    toolOutput: unknown
+  ): string => {
+    // Helper functions
+    const formatCaseStatus = (status: string): string => {
+      const statusMap: Record<string, string> = {
+        'PENDING': '⏳ Pending',
+        'IN_TRIAL': '⚖️ In Trial',
+        'COMPLETED': '✅ Completed',
+        'APPEALED': '📝 Appealed',
+      };
+      return statusMap[status] || status;
+    };
+
+    const formatVerdictType = (type: string | number): string => {
+      const verdictMap: Record<string, string> = {
+        '0': '❌ GUILTY',
+        '1': '✅ NOT GUILTY',
+        '2': '🤝 SETTLEMENT',
+        '3': '🚫 DISMISSED',
+        'GUILTY': '❌ GUILTY',
+        'NOT_GUILTY': '✅ NOT GUILTY',
+        'SETTLEMENT': '🤝 SETTLEMENT',
+        'DISMISSED': '🚫 DISMISSED',
+      };
+      return verdictMap[String(type)] || String(type);
+    };
+
+    const formatAddress = (address: string): string => {
+      if (address.length > 10) {
+        return `${address.slice(0, 6)}...${address.slice(-4)}`;
+      }
+      return address;
+    };
+
+    // Handle errors
+    if (toolOutput && typeof toolOutput === 'object' && 'error' in toolOutput) {
+      return `❌ **Error**: ${(toolOutput as { error: string }).error}`;
     }
 
-    if (toolOutput && typeof toolOutput === 'object' && 'success' in toolOutput) {
-      const output = toolOutput as { success: boolean; message?: string; error?: string };
-      if (!output.success && output.error) {
-        return `❌ Error: ${output.error}`;
+    // Format based on tool type
+    switch (toolName) {
+      case 'get_connected_wallet': {
+        const output = toolOutput as {
+          connected: boolean;
+          address?: string;
+          isOwner?: boolean;
+          contractAddress?: string;
+        };
+
+        if (!output.connected) {
+          return '🔌 **Wallet Not Connected**\n\nPlease connect your wallet to use RumbleCourt features.';
+        }
+
+        return `✅ **Wallet Connected**
+
+        **Address**: \`${output.address}\`
+        **Role**: ${output.isOwner ? '👑 System Owner' : '👤 User'}
+        **Contract**: \`${output.contractAddress}\``;
       }
-      if (output.message) {
-        return `✅ ${output.message}`;
+
+      case 'file_case': {
+        const output = toolOutput as {
+          success?: boolean;
+          message?: string;
+          caseTitle?: string;
+          transactionHash?: string;
+          nextSteps?: string;
+        };
+
+        if (!output.success) {
+          return `❌ **Failed to file case**\n\n${output.message || 'Unknown error occurred'}`;
+        }
+
+        return `✅ **Case "${output.caseTitle}" filed successfully**
+
+        **Transaction**: \`${output.transactionHash}\`
+
+        ${output.nextSteps || 'Your case is now pending trial.'}`;
+      }
+
+      case 'get_case': {
+        const output = toolOutput as {
+          success?: boolean;
+          case?: {
+            caseId: string;
+            plaintiff: string;
+            caseTitle: string;
+            evidenceHash: string;
+            filedAt: string;
+            status: string;
+          };
+        };
+
+        if (!output.success || !output.case) {
+          return '❌ **Case not found**';
+        }
+
+        const c = output.case;
+        return `📋 **Case #${c.caseId}: ${c.caseTitle}**
+
+        **Status**: ${formatCaseStatus(c.status)}
+        **Filed**: ${c.filedAt}
+        **Plaintiff**: \`${formatAddress(c.plaintiff)}\`
+
+        **Evidence**: ${c.evidenceHash}`;
+      }
+
+      case 'get_user_cases': {
+        const output = toolOutput as {
+          success?: boolean;
+          count?: number;
+          cases?: Array<{
+            caseId: bigint | string;
+            caseTitle: string;
+            status: string;
+          }>;
+        };
+
+        if (!output.success || !output.cases) {
+          return '❌ **Failed to retrieve cases**';
+        }
+
+        if (output.count === 0) {
+          return '📋 **No cases found**\n\nYou haven\'t filed any cases yet. File your first case to get started!';
+        }
+
+        // Group cases by status
+        const pending = output.cases.filter(c => c.status === 'PENDING');
+        const inTrial = output.cases.filter(c => c.status === 'IN_TRIAL');
+        const completed = output.cases.filter(c => c.status === 'COMPLETED');
+        const appealed = output.cases.filter(c => c.status === 'APPEALED');
+
+        let formatted = `✅ **Found ${output.count} case(s) filed by you**\n\n`;
+
+        if (completed.length > 0) {
+          formatted += `**✅ COMPLETED (${completed.length})**\n`;
+          completed.forEach(c => {
+            formatted += `- **Case ${c.caseId}**: ${c.caseTitle}\n`;
+          });
+          formatted += '\n';
+        }
+
+        if (inTrial.length > 0) {
+          formatted += `**⚖️ IN TRIAL (${inTrial.length})**\n`;
+          inTrial.forEach(c => {
+            formatted += `- **Case ${c.caseId}**: ${c.caseTitle}\n`;
+          });
+          formatted += '\n';
+        }
+
+        if (appealed.length > 0) {
+          formatted += `**📝 APPEALED (${appealed.length})**\n`;
+          appealed.forEach(c => {
+            formatted += `- **Case ${c.caseId}**: ${c.caseTitle}\n`;
+          });
+          formatted += '\n';
+        }
+
+        if (pending.length > 0) {
+          formatted += `**⏳ PENDING (${pending.length})**\n`;
+          pending.forEach(c => {
+            formatted += `- **Case ${c.caseId}**: ${c.caseTitle}\n`;
+          });
+        }
+
+        return formatted.trim();
+      }
+
+      case 'get_total_cases': {
+        const output = toolOutput as {
+          totalCases?: string;
+        };
+
+        return `📊 **Total Cases in System**: ${output.totalCases || '0'}`;
+      }
+
+      case 'start_trial': {
+        const output = toolOutput as {
+          success?: boolean;
+          message?: string;
+          transactionHash?: string;
+          caseId?: string;
+          nextSteps?: string;
+        };
+
+        if (!output.success) {
+          return `❌ **Failed to start trial**\n\n${output.message || 'Unknown error'}`;
+        }
+
+        return `⚖️ **Trial Started for Case ${output.caseId}**
+
+        **Transaction**: \`${output.transactionHash}\`
+
+        ${output.nextSteps || 'AI lawyers will now debate this case.'}`;
+      }
+
+      case 'record_verdict': {
+        const output = toolOutput as {
+          success?: boolean;
+          verdict?: {
+            type: string;
+            reasoning: string;
+            isFinal: boolean;
+          };
+          transactionHash?: string;
+          nextSteps?: string;
+        };
+
+        if (!output.success || !output.verdict) {
+          return `❌ **Failed to record verdict**`;
+        }
+
+        return `📝 **Verdict Recorded**
+
+        **Decision**: ${formatVerdictType(output.verdict.type)}
+        **Final**: ${output.verdict.isFinal ? '✅ Yes' : '❌ No'}
+        **Transaction**: \`${output.transactionHash}\`
+
+        **Reasoning**: ${output.verdict.reasoning}
+
+        ${output.nextSteps || ''}`;
+      }
+
+      case 'get_verdict': {
+        const output = toolOutput as {
+          success?: boolean;
+          verdict?: {
+            caseId: string;
+            verdictType: string | number;
+            reasoning: string;
+            timestamp: string;
+            isFinal: boolean;
+          };
+        };
+
+        if (!output.success || !output.verdict) {
+          return '❌ **No verdict found for this case**';
+        }
+
+        const v = output.verdict;
+        return `⚖️ **Verdict for Case #${v.caseId}**
+
+        **Decision**: ${formatVerdictType(v.verdictType)}
+        **Recorded**: ${v.timestamp}
+        **Final**: ${v.isFinal ? '✅ Yes (Can be appealed)' : '❌ No'}
+
+        **Reasoning**:
+        ${v.reasoning}`;
+      }
+
+      case 'has_verdict': {
+        const output = toolOutput as {
+          hasVerdict?: boolean;
+          caseId?: string;
+          message?: string;
+        };
+
+        const icon = output.hasVerdict ? '✅' : '⏳';
+        return `${icon} ${output.message || 'Status unknown'}`;
+      }
+
+      case 'appeal_case': {
+        const output = toolOutput as {
+          success?: boolean;
+          message?: string;
+          transactionHash?: string;
+          caseId?: string;
+          nextSteps?: string;
+        };
+
+        if (!output.success) {
+          return `❌ **Appeal Failed**\n\n${output.message || 'Unknown error'}`;
+        }
+
+        return `📝 **Appeal Filed for Case ${output.caseId}**
+
+        **Transaction**: \`${output.transactionHash}\`
+
+        ${output.nextSteps || 'Your appeal is now under review.'}`;
+      }
+
+      case 'get_system_owner': {
+        const output = toolOutput as {
+          owner?: string;
+        };
+
+        return `👑 **System Owner**: \`${output.owner}\``;
+      }
+
+      default: {
+        // For unknown tools, check if it has success property
+        if (toolOutput && typeof toolOutput === 'object' && 'success' in toolOutput) {
+          const output = toolOutput as { success: boolean; message?: string };
+          const icon = output.success ? '✅' : '❌';
+          return `${icon} ${output.message || JSON.stringify(toolOutput, null, 2)}`;
+        }
+
+        // Last resort: pretty print
+        return `\`\`\`json\n${JSON.stringify(toolOutput, null, 2)}\n\`\`\``;
       }
     }
-
-    return JSON.stringify(toolOutput, bigIntReplacer, 2);
   };
 
   const processCommand = async (userInput: string): Promise<void> => {
@@ -891,6 +1179,24 @@ YOU MUST CALL TOOLS IMMEDIATELY. DO NOT ASK QUESTIONS. DO NOT REQUEST CLARIFICAT
 
 ❌ WRONG: "To file a case, I need the title and evidence. What details can you provide?"
 ✅ CORRECT: [Calls file_case with inferred parameters] "Case filed!"
+
+## RESPONSE FORMATTING RULES
+
+1. **Be Clear and Concise**
+   - Start with direct answers
+   - Use structured markdown for complex information
+   - Keep responses scannable
+
+2. **Use Appropriate Formatting**
+   - Headers (##, ###) for sections
+   - Bullet points for lists
+   - Inline code (\`) for technical details (addresses, hashes, IDs)
+   - **Bold** for emphasis on key points
+
+3. **Never Show Raw JSON**
+   - Tool outputs are already formatted for you
+   - Present information in natural language
+   - Extract and explain key details
 
 REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
 

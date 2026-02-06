@@ -1,228 +1,224 @@
-# RumbleCourt: AI-Driven Courtroom Simulator
+# RumbleCourt: AI-Powered Courtroom Simulator
 
-## Overview
+## 🎯 What is RumbleCourt?
 
-RumbleCourt is an AI-driven courtroom simulator where LLM agents act as opposing lawyers, fiercely debating user-submitted evidence in real-time trials. A neutral judge LLM delivers binding verdicts, while all proceedings and outcomes are immutably recorded on-chain for transparency, adjournment tracking, and future reference—empowering users to preview case outcomes before real-world litigation. This boosts legal professionals' productivity by simulating trials to save time/resources and improve decision-making habits.
+**RumbleCourt** is your personal courtroom simulator where AI lawyers battle it out over your evidence, and a neutral AI judge delivers real verdicts. Think of it as a "legal flight simulator" - practice your case strategy, test your arguments, and see potential outcomes before stepping into a real courtroom.
 
-## Categories
-- **Primary:** Legal Technology
-- **Secondary:** AI Simulation
+## 🚀 Why This Matters
 
-## Core Features
+**For Legal Professionals:**
+- Preview case outcomes before real litigation
+- Test different legal strategies risk-free
+- Save time and resources on case preparation
+- Improve decision-making with AI-powered insights
 
-### AI Agent Litigation
-- LLM-powered opposing lawyers for dynamic courtroom debates
-- Real-time evidence analysis and argumentation
-- Neutral judge agent for impartial verdict delivery
+**For Everyone:**
+- Understand how legal arguments work
+- See justice in action with transparent, recorded proceedings
+- Access legal simulation without expensive software
 
-### Blockchain Transparency
-- On-chain recording of all trial proceedings and outcomes
-- Immutable evidence storage and adjournment tracking
-- Decentralized case history for future reference
+## 🎪 How It Works
 
-### Pre-Litigation Simulation
-- Preview potential case outcomes before real-world litigation
-- Risk assessment and strategy optimization
-- Productivity enhancement for legal professionals
+1. **Connect Wallet** - Securely connect your MetaMask or WalletConnect wallet
+2. **File Your Case** - Submit case details and evidence through the command terminal
+3. **AI Lawyers Battle** - Watch as opposing AI attorneys debate your case in real-time
+4. **Judge Delivers Verdict** - A neutral AI judge analyzes everything and renders a decision
+5. **Immutable Record** - Every trial is permanently recorded on the blockchain for transparency
 
-### Real-Time Trials
-- Live courtroom simulations with user-submitted evidence
-- Interactive debate sessions between AI lawyers
-- Binding verdicts delivered by impartial AI judge
+## ✨ Key Features
 
-## Tech Stack
+### 🤖 AI-Powered Legal Teams
+- **Prosecution & Defense**: Two AI lawyers with opposing viewpoints
+- **Real-Time Debates**: Dynamic courtroom arguments that adapt to your evidence
+- **Evidence Analysis**: AI examines documents, photos, and testimony
 
-- **Frontend/Backend:** Next.js 16 + TypeScript
-- **LLM:** OpenAI GPT-4o or OpenRouter models
-- **Blockchain:** EVM (Polygon testnet), Solidity 0.8.19, Hardhat, ethers.js/wagmi
-- **Evaluator:** Opik SDK
-- **APIs:** Moralis/Alchemy (blockchain data), CoinGecko/CoinMarketCap (market data)
-- **Styling:** Tailwind CSS
+### ⚖️ Fair & Transparent
+- **Neutral Judge**: Unbiased AI judge focused only on the facts
+- **Blockchain Recording**: Every word, argument, and verdict is permanently stored
+- **Public Ledger**: Transparent proceedings anyone can verify
 
-## Project Structure
+### 🎮 User-Friendly Experience
+- **Command Terminal**: Simple text-based interface for case management
+- **Live Simulation**: Watch the trial unfold in real-time with animated courtroom
+- **Case History**: View all your cases with status tracking
+- **Quick Actions**: One-click commands for common tasks
+
+## 🛠 Tech Stack
+
+- **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
+- **AI Brains**: OpenRouter models (Trinity Large Preview) with Opik observability
+- **Blockchain**: Polygon testnet (Mumbai) with Solidity smart contracts
+- **Smart Contract**: Minimal courtroom contract with case lifecycle management
+- **AI Observability**: Opik SDK for LLM interaction tracing and optimization
+- **Wallet Integration**: MetaMask/WalletConnect via wagmi
+- **State Management**: React Context API
+- **Styling**: Tailwind CSS with custom animations
+
+## 📁 Project Structure
 
 ```
 rumbleCourt/
-├── app/
-│   ├── api/
-│   │   ├── chat/          # LLM interaction endpoints
-│   │   ├── wallet/        # Blockchain integration
-│   │   └── opik/          # Evaluation and tracing
-│   ├── components/        # React components
-│   │   ├── ChatInterface.tsx
-│   │   ├── WalletConnect.tsx
-│   │   └── CourtroomSimulation.tsx
-│   ├── lib/               # Configurations
-│   │   ├── wagmi.ts       # Wallet integration
-│   │   ├── opik.ts        # Evaluation setup
-│   │   └── llm.ts         # AI agent chains
-│   └── utils/             # API utilities
-│       ├── moralis.ts     # Blockchain data APIs
-│       └── coingecko.ts   # Market data APIs
-├── contracts/             # Smart contracts
-│   └── CourtRecord.sol
-├── scripts/               # Deployment scripts
-│   └── deploy.ts
-├── test/                  # Test files
-│   └── CourtRecord.test.ts
-├── hardhat.config.ts      # Hardhat configuration
-├── .env.local.example     # Environment variables template
-└── README.md
+├── app/                    # Frontend application
+│   ├── courtroom/         # Main simulation interface
+│   ├── history/           # View past cases
+│   ├── api/               # Backend endpoints
+│   └── components/        # Reusable UI components
+├── contracts/             # Blockchain smart contracts
+│   └── RumbleCourt.sol    # Minimal courtroom contract
+├── lib/                   # Core logic & configurations
+│   ├── llm-agents.ts      # AI agent management
+│   ├── courtroom-mcp-tools.ts # Blockchain interaction tools
+│   └── opik-client.ts     # AI interaction logging
+├── services/              # Backend services
+│   └── blockchain.ts      # Contract interaction layer
+├── context/               # React context providers
+│   ├── CourtroomContext.tsx # Main application state
+│   └── WalletContext.tsx    # Wallet connection state
+├── components/            # UI components
+│   ├── CourtroomSimulation.tsx # Main terminal interface
+│   ├── CaseHistorySidebar.tsx  # Case management sidebar
+│   └── TerminalMessage.tsx     # Message display component
+└── scripts/               # Deployment & utilities
 ```
 
-## Getting Started
+## 🚀 Quick Start
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Copy `.env.local.example` to `.env.local` and fill in API keys
-4. Start development server: `npm run dev`
-5. For smart contracts: `npx hardhat compile`
+### For Users (No Coding Required)
+1. Visit our live demo
+2. Connect your wallet (MetaMask or similar)
+3. Use the command terminal to file your first case
+4. Watch the AI courtroom drama unfold!
 
-## User Flow
-
-1. User submits case evidence and details
-2. AI lawyers engage in real-time debate
-3. Neutral judge delivers binding verdict
-4. All proceedings recorded immutably on-chain
-5. Users can review case history and outcomes
-
-## Hackathon Alignment
-
-- Built during Jan 13 - Feb 2026 hackathon period
-- Demonstrates advanced LLM agent capabilities with reasoning chains
-- Deep Opik integration for observability and evaluation
-- Focus on innovative legal technology solutions
-- Functional demo with real-world impact potential
-
-## Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- MetaMask or WalletConnect-compatible wallet
-- API keys for:
-  - OpenAI/OpenRouter (LLM services)
-  - Moralis/Alchemy (blockchain data)
-  - CoinGecko/CoinMarketCap (market data)
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Dapp-Mentors/rumblecourt.git
-   cd rumbleCourt
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   ```bash
-   cp .env.local.example .env.local
-   # Edit .env.local with your API keys
-   ```
-
-## Configuration
-
-### Environment Variables
-
-Create a `.env.local` file with the following variables:
-
-```env
-# LLM Configuration
-OPENAI_API_KEY=your_openai_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-
-# Blockchain Data APIs
-MORALIS_API_KEY=your_moralis_api_key
-ALCHEMY_API_KEY=your_alchemy_api_key
-
-# Market Data APIs
-COINGECKO_API_KEY=your_coingecko_api_key
-CMC_API_KEY=your_coinmarketcap_api_key
-
-# Blockchain Configuration
-POLYGON_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your_api_key
-```
-
-## Usage
-
-### Development
-
-Start the development server:
+### For Developers
 ```bash
+# Clone and setup
+git clone https://github.com/Dapp-Mentors/rumblecourt.git
+cd rumbleCourt
+npm install
+
+# Configure environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your API keys:
+# NEXT_PUBLIC_OPENROUTER_API_KEY=your_key_here
+# NEXT_PUBLIC_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your_key
+
+# Start development server
 npm run dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+# Optional: Local blockchain development
+# In another terminal, start local blockchain
+npm run node
 
-### Smart Contract Development
+# Deploy contract to local network
+npm run deploy:local
 
-Compile contracts:
-```bash
-npx hardhat compile
-```
+# Run tests
+npm run test
 
-Run tests:
-```bash
-npx hardhat test
-```
-
-Deploy to testnet:
-```bash
-npx hardhat run scripts/deploy.ts --network polygonMumbai
-```
-
-### Code Quality
-
-Run linter:
-```bash
+# Check code quality
 npm run lint
 ```
 
-Fix linting issues:
+### Smart Contract Development
 ```bash
-npm run lint:fix
-```
+# Compile contracts
+npx hardhat compile
 
-## Testing
-
-Run the test suite:
-```bash
-npm test
-```
-
-For smart contracts:
-```bash
+# Run contract tests
 npx hardhat test
+
+# Deploy to Polygon Mumbai testnet
+npx hardhat run scripts/deploy.ts --network polygonMumbai
 ```
 
-## Deployment
+## 🎯 Use Cases
 
-### Frontend Deployment
+### Law Firms & Attorneys
+- **Case Strategy Testing**: Try different legal approaches before real trials
+- **Client Education**: Show clients potential outcomes in an engaging way
+- **Team Training**: Practice arguments and evidence presentation
+- **Pre-Litigation Analysis**: Assess case strength and potential verdicts before filing
 
-Build for production:
-```bash
-npm run build
-npm start
-```
+### Law Students
+- **Learning Tool**: Understand courtroom dynamics and legal reasoning
+- **Mock Trials**: Practice without the pressure of real cases
+- **Evidence Analysis**: Learn how different evidence affects case outcomes
+- **Legal Strategy Development**: Experiment with different argument approaches
 
-### Smart Contract Deployment
+### Curious Minds
+- **Legal Education**: See how the justice system works in practice
+- **Debate Practice**: Test your argumentation skills
+- **Transparency**: Witness fair, unbiased legal proceedings
+- **AI Technology Exploration**: Experience cutting-edge AI in legal contexts
 
-Deploy to Polygon mainnet:
-```bash
-npx hardhat run scripts/deploy.ts --network polygon
-```
+### Blockchain Enthusiasts
+- **Smart Contract Interaction**: Experience real blockchain transactions
+- **Decentralized Applications**: Use a complete Web3 legal platform
+- **On-Chain Transparency**: Verify case records on the blockchain
 
-## Contributing
+## 🔒 Security & Privacy
+
+- **Your Evidence**: Only you control access to your case files
+- **Blockchain Transparency**: Public verification without compromising privacy
+- **Secure Storage**: Encrypted evidence handling
+- **No Data Mining**: We don't sell or misuse your information
+
+## 🌟 What Makes RumbleCourt Special
+
+### 🤖 Advanced AI Architecture
+- **Multi-Agent System**: Three specialized AI agents (Prosecution, Defense, Judge) with distinct personalities and legal strategies
+- **Opik Observability**: Real-time LLM interaction tracing for optimization and debugging
+- **Smart Prompt Engineering**: Context-aware prompts that adapt based on case history and evidence
+- **Automatic Quality Scoring**: Built-in evaluation metrics for relevance, argument quality, and legal accuracy
+
+### ⚖️ Blockchain-Powered Transparency
+- **Immutable Case Records**: Every case filing, trial, and verdict permanently stored on-chain
+- **Transparent Verdicts**: Public blockchain ledger ensures fair and verifiable outcomes
+- **Case Lifecycle Management**: Complete tracking from filing through appeal process
+- **Decentralized Trust**: No central authority required for case validation
+
+### 🎮 Next-Generation User Experience
+- **Command Terminal Interface**: Intuitive text-based commands for case management
+- **Live Trial Simulation**: Real-time courtroom drama with animated interface
+- **Smart Case History**: Automatic organization with most recent and completed cases prioritized
+- **Quick Actions**: One-click commands for common legal tasks
+
+### Unlike Traditional Legal Software
+- **No Expensive Licenses**: Built on open, accessible technology
+- **AI-Powered Insights**: Dynamic analysis you can't get from static software
+- **Real-Time Interaction**: Watch arguments develop, don't just read reports
+- **Transparent Process**: See exactly how decisions are made
+
+### Built for the Future
+- **Web3 Ready**: Blockchain integration for next-generation transparency
+- **AI-First**: Designed around the capabilities of modern AI
+- **User-Centric**: Simple interface, powerful results
+- **Evolving**: Constantly improving with new AI capabilities
+
+## 🤝 Contributing
+
+We welcome contributors! Whether you're a developer, designer, legal expert, or just passionate about legal tech:
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'feat: add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+2. Create your feature branch
+3. Submit a pull request
 
-## License
+See our [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-MIT
+## 📚 Documentation
+
+- [API Documentation](docs/api.md)
+- [Smart Contract Guide](docs/contracts.md)
+- [Development Setup](docs/development.md)
+
+## 🐛 Issues & Support
+
+Found a bug? Have a question? [Open an issue](https://github.com/Dapp-Mentors/rumblecourt/issues) or join our community discussions.
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+**RumbleCourt**: Where AI meets justice, and everyone gets their day in court. ⚖️🤖
