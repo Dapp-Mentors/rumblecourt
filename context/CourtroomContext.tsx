@@ -87,6 +87,7 @@ interface CourtroomContextType {
   isProcessing: boolean;
   selectedTool: string | null;
   isSimulating: boolean;
+  simulationProgress: string;
 
   // MCP Tools
   courtroomTools: typeof rumbleCourtMcpTools;
@@ -99,6 +100,7 @@ interface CourtroomContextType {
   setSelectedTool: (tool: string | null) => void;
   processCommand: (command: string) => Promise<void>;
   simulateTrial: (caseTitle: string, evidenceHash: string) => Promise<void>;
+  abortSimulation: () => void;
 
   // Tool execution helpers
   executeTool: (toolName: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -158,6 +160,12 @@ Let's begin your blockchain legal journey!`,
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [isSimulating, setIsSimulatingState] = useState(false);
+  const [simulationProgress, setSimulationProgress] = useState<string>('');
+
+  const abortSimulation = (): void => {
+    setIsSimulatingState(false);
+    setSimulationProgress('');
+  };
 
   // Simulation logic with real LLM agents
   const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
@@ -1236,6 +1244,7 @@ When user says "use these scriptures" or "use this information":
     isProcessing,
     selectedTool,
     isSimulating,
+    simulationProgress,
 
     // MCP Tools
     courtroomTools,
@@ -1248,6 +1257,7 @@ When user says "use these scriptures" or "use this information":
     setSelectedTool,
     processCommand,
     simulateTrial,
+    abortSimulation,
 
     // Tool execution helpers
     executeTool,
