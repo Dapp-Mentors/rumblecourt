@@ -1,4 +1,4 @@
-import 'server-only';
+import 'server-only'
 // Opik configuration for evaluation and tracing
 import { Opik } from 'opik'
 
@@ -18,7 +18,7 @@ export const initializeOpik = (): Opik | null => {
   const projectName = process.env.OPIK_PROJECT_NAME || 'rumblecourt-agents'
 
   if (!apiKey) {
-    console.warn('Opik API key not configured. Tracing will be disabled.')
+    console.warn('[Opik] ⚠️  API key not configured. Tracing will be disabled.')
     return null
   }
 
@@ -27,10 +27,10 @@ export const initializeOpik = (): Opik | null => {
       apiKey,
       projectName,
     })
-    console.log(`✅ Opik initialized for project: ${projectName}`)
+    console.log(`[Opik] ✅ Initialized for project: ${projectName}`)
     return opikClient
   } catch (error) {
-    console.error('Failed to initialize Opik:', error)
+    console.error('[Opik] ❌ Failed to initialize:', error)
     return null
   }
 }
@@ -95,7 +95,7 @@ export class CourtroomTracer {
     this.debug = debug
 
     if (this.debug) {
-      console.log('📊 CourtroomTracer initialized', {
+      console.log('[Opik] 📊 CourtroomTracer initialized', {
         caseId,
         caseTitle,
         hasOpik: !!this.opik,
@@ -106,7 +106,7 @@ export class CourtroomTracer {
   async startTrace(): Promise<void> {
     if (!this.opik) {
       if (this.debug) {
-        console.log('⚠️  Opik not available, skipping trace creation')
+        console.log('[Opik] ⚠️  Opik not available, skipping trace creation')
       }
       return
     }
@@ -129,10 +129,75 @@ export class CourtroomTracer {
       }) as unknown as OpikTrace
 
       if (this.debug) {
-        console.log('✅ Courtroom trace started')
+        console.log('[Opik] ✅ Courtroom trace started')
       }
     } catch (error) {
-      console.error('Failed to start Opik trace:', error)
+      console.error('[Opik] ❌ Failed to start trace:', error)
+    }
+  }
+
+  /**
+   * Log a complete LLM interaction with prompt, response, and metadata
+   * This is the primary method for capturing LLM calls for optimization
+   */
+  async logLLMInteraction(
+    agent: 'prosecution' | 'defense' | 'judge',
+    phase: string,
+    prompt: string,
+    response: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.opik || !this.currentTrace) {
+      if (this.debug) {
+        console.log('[Opik] ⚠️  Skipping LLM interaction log (no trace)')
+      }
+      return
+    }
+
+    const spanName = `llm_${agent}_${phase}_${Date.now()}`
+
+    try {
+      // Create and immediately end a span with the full interaction
+      const span = this.currentTrace.span({
+        name: spanName,
+        type: 'llm',
+        input: {
+          agent,
+          phase,
+          prompt,
+          promptLength: prompt.length,
+          timestamp: new Date().toISOString(),
+          ...metadata,
+        },
+        metadata: {
+          agent,
+          phase,
+          caseId: this.caseId,
+          caseTitle: this.caseTitle,
+          evidenceHash: this.evidenceHash,
+          interactionType: 'llm_call',
+          ...metadata,
+        },
+      })
+
+      await span.end({
+        output: {
+          response,
+          responseLength: response.length,
+          completedAt: new Date().toISOString(),
+        },
+      })
+
+      if (this.debug) {
+        console.log(`[Opik] 📝 LLM interaction logged:`, {
+          agent,
+          phase,
+          promptLength: prompt.length,
+          responseLength: response.length,
+        })
+      }
+    } catch (error) {
+      console.error(`[Opik] ❌ Failed to log LLM interaction:`, error)
     }
   }
 
@@ -162,10 +227,10 @@ export class CourtroomTracer {
       this.currentSpans.set(spanName, span)
 
       if (this.debug) {
-        console.log(`📝 Span started: ${spanName}`, { agent, phase })
+        console.log(`[Opik] 🔍 Span started: ${spanName}`, { agent, phase })
       }
     } catch (error) {
-      console.error(`Failed to start span ${spanName}:`, error)
+      console.error(`[Opik] ❌ Failed to start span ${spanName}:`, error)
     }
   }
 
@@ -186,7 +251,7 @@ export class CourtroomTracer {
     const span = this.currentSpans.get(spanName)
     if (!span) {
       if (this.debug) {
-        console.warn(`⚠️  Span not found: ${spanName}`)
+        console.warn(`[Opik] ⚠️  Span not found: ${spanName}`)
       }
       return
     }
@@ -200,10 +265,10 @@ export class CourtroomTracer {
       this.currentSpans.delete(spanName)
 
       if (this.debug) {
-        console.log(`✅ Span ended: ${spanName}`)
+        console.log(`[Opik] ✅ Span ended: ${spanName}`)
       }
     } catch (error) {
-      console.error(`Failed to end span ${spanName}:`, error)
+      console.error(`[Opik] ❌ Failed to end span ${spanName}:`, error)
     }
   }
 
@@ -213,18 +278,8 @@ export class CourtroomTracer {
     prompt: string,
     response: string,
   ): Promise<void> {
-    if (!this.opik || !this.currentTrace) {
-      return
-    }
-
-    const spanName = `${agent}_${phase}_${Date.now()}`
-
-    try {
-      await this.startSpan(spanName, agent, phase, { prompt })
-      await this.endSpan(spanName, { response })
-    } catch (error) {
-      console.error('Failed to record agent interaction:', error)
-    }
+    // Use the new logLLMInteraction method for better tracking
+    await this.logLLMInteraction(agent, phase, prompt, response)
   }
 
   async recordPhaseCompletion(phase: string, outcome: unknown): Promise<void> {
@@ -234,10 +289,10 @@ export class CourtroomTracer {
 
     try {
       if (this.debug) {
-        console.log(`✅ Phase completed: ${phase}`, outcome)
+        console.log(`[Opik] ✅ Phase completed: ${phase}`, outcome)
       }
     } catch (error) {
-      console.error('Failed to record phase completion:', error)
+      console.error('[Opik] ❌ Failed to record phase completion:', error)
     }
   }
 
@@ -265,10 +320,10 @@ export class CourtroomTracer {
       })
 
       if (this.debug) {
-        console.log('⚖️  Verdict recorded:', { verdict, confidence })
+        console.log('[Opik] ⚖️  Verdict recorded:', { verdict, confidence })
       }
     } catch (error) {
-      console.error('Failed to record verdict:', error)
+      console.error('[Opik] ❌ Failed to record verdict:', error)
     }
   }
 
@@ -284,7 +339,7 @@ export class CourtroomTracer {
             output: { status: 'auto_closed' },
           })
         } catch (error) {
-          console.error(`Failed to close span ${spanName}:`, error)
+          console.error(`[Opik] ❌ Failed to close span ${spanName}:`, error)
         }
       }
       this.currentSpans.clear()
@@ -292,12 +347,12 @@ export class CourtroomTracer {
       await this.currentTrace.end(output || {})
 
       if (this.debug) {
-        console.log('✅ Courtroom trace ended')
+        console.log('[Opik] ✅ Courtroom trace ended')
       }
 
       this.currentTrace = null
     } catch (error) {
-      console.error('Failed to end Opik trace:', error)
+      console.error('[Opik] ❌ Failed to end trace:', error)
     }
   }
 

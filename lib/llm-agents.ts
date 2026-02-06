@@ -1,9 +1,5 @@
 // lib/llm-agents.ts
-// Tracing is now handled entirely in CourtroomContext.tsx via the client tracer proxy
-
-// LLM Agent Profiles with distinct personalities
-// import { createCourtroomTracer } from './opik-client'
-// import type { CourtroomMetadata } from './opik-client' // Only if you still want the type (optional)
+// Enhanced with Opik tracing for LLM interaction logging
 
 export interface AgentProfile {
   role: 'prosecution' | 'defense' | 'judge'
@@ -295,18 +291,45 @@ export const simulateAgentResponse = async (
   return 'I need to review the evidence before making a ruling.'
 }
 
-// Real LLM integration function (Opik tracing removed - now handled in simulateTrial)
+/**
+ * Enhanced LLM call with integrated Opik logging
+ * Logs are sent asynchronously without blocking the response
+ */
 export const callLLMAgent = async (
   agent: 'prosecution' | 'defense' | 'judge',
   prompt: string,
   systemPrompt?: string,
+  tracer?: {
+    logLLMInteraction: (
+      agent: 'prosecution' | 'defense' | 'judge',
+      phase: string,
+      prompt: string,
+      response: string,
+      metadata?: Record<string, unknown>,
+    ) => void
+  },
+  phase?: string,
 ): Promise<string> => {
   const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
 
   if (!apiKey) {
-    console.warn('OpenRouter API key not configured, using simulation')
-    return await simulateAgentResponse(agent)
+    console.warn(
+      '[LLM] ⚠️  OpenRouter API key not configured, using simulation',
+    )
+    const response = await simulateAgentResponse(agent)
+
+    // Log simulated response too
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, response, {
+        simulated: true,
+        model: 'simulation',
+      })
+    }
+
+    return response
   }
+
+  const startTime = Date.now()
 
   try {
     const response = await fetch(
@@ -344,10 +367,36 @@ export const callLLMAgent = async (
       throw new Error(data.error?.message || 'API error')
     }
 
-    return data.choices[0].message.content?.trim() || 'No response.'
+    const llmResponse =
+      data.choices[0].message.content?.trim() || 'No response.'
+    const endTime = Date.now()
+
+    // Log the interaction asynchronously (fire-and-forget)
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, llmResponse, {
+        model: 'arcee-ai/trinity-large-preview:free',
+        temperature: agent === 'judge' ? 0.3 : 0.7,
+        max_tokens: 400,
+        latency_ms: endTime - startTime,
+        success: true,
+      })
+    }
+
+    return llmResponse
   } catch (error) {
-    console.error('LLM call failed:', error)
-    return await simulateAgentResponse(agent)
+    console.error('[LLM] ❌ LLM call failed:', error)
+    const fallbackResponse = await simulateAgentResponse(agent)
+
+    // Log the error and fallback
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, fallbackResponse, {
+        error: (error as Error).message,
+        fallback: true,
+        model: 'simulation',
+      })
+    }
+
+    return fallbackResponse
   }
 }
 

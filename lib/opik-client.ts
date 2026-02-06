@@ -13,6 +13,7 @@ export interface CourtroomMetadata {
 
 /**
  * Client-side CourtroomTracer that communicates with the API route
+ * All operations are fire-and-forget to avoid blocking UI
  */
 export class CourtroomTracerClient {
   private caseId: string
@@ -32,13 +33,48 @@ export class CourtroomTracerClient {
     this.debug = debug
 
     if (this.debug) {
-      console.log('📊 CourtroomTracer initialized (client)', {
+      console.log('[Opik Client] 📊 CourtroomTracer initialized', {
         caseId,
         caseTitle,
       })
     }
   }
 
+  /**
+   * Fire-and-forget API call - doesn't wait for response
+   * This ensures tracing never blocks the UI
+   */
+  private fireAndForget(action: string, params: Record<string, unknown> = {}) {
+    // Using Promise without awaiting - true fire-and-forget
+    fetch('/api/opik', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action,
+        caseId: this.caseId,
+        caseTitle: this.caseTitle,
+        evidenceHash: this.evidenceHash,
+        ...params,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (this.debug && !data.success) {
+          console.warn(`[Opik Client] ⚠️  ${action} failed:`, data.error)
+        }
+      })
+      .catch((error) => {
+        if (this.debug) {
+          console.error(`[Opik Client] ❌ ${action} error:`, error)
+        }
+      })
+  }
+
+  /**
+   * Only use await for critical operations that need confirmation
+   */
   private async callApi(action: string, params: Record<string, unknown> = {}) {
     try {
       const response = await fetch('/api/opik', {
@@ -57,14 +93,14 @@ export class CourtroomTracerClient {
 
       const data = await response.json()
 
-      if (!data.success) {
-        console.error(`Opik API error (${action}):`, data.error)
+      if (!data.success && this.debug) {
+        console.error(`[Opik Client] ❌ ${action} failed:`, data.error)
       }
 
       return data
     } catch (error) {
       if (this.debug) {
-        console.error(`Failed to call Opik API (${action}):`, error)
+        console.error(`[Opik Client] ❌ ${action} error:`, error)
       }
       return { success: false, error: String(error) }
     }
@@ -74,13 +110,46 @@ export class CourtroomTracerClient {
     await this.callApi('start_trace')
   }
 
+  /**
+   * PRIMARY METHOD: Log LLM interactions for optimization
+   * Fire-and-forget to never block UI
+   */
+  logLLMInteraction(
+    agent: 'prosecution' | 'defense' | 'judge',
+    phase: string,
+    prompt: string,
+    response: string,
+    metadata?: Record<string, unknown>,
+  ): void {
+    this.fireAndForget('log_llm_interaction', {
+      agent,
+      phase,
+      prompt,
+      response,
+      metadata: {
+        ...metadata,
+        timestamp: new Date().toISOString(),
+      },
+    })
+
+    if (this.debug) {
+      console.log(`[Opik Client] 📝 Queued LLM interaction:`, {
+        agent,
+        phase,
+        promptLength: prompt.length,
+        responseLength: response.length,
+      })
+    }
+  }
+
   async startSpan(
     spanName: string,
     agent: 'prosecution' | 'defense' | 'judge',
     phase: string,
     input: unknown,
   ): Promise<void> {
-    await this.callApi('start_span', {
+    // Fire and forget for spans too
+    this.fireAndForget('start_span', {
       spanName,
       agent,
       phase,
@@ -98,7 +167,7 @@ export class CourtroomTracerClient {
       totalTokens?: number
     },
   ): Promise<void> {
-    await this.callApi('end_span', {
+    this.fireAndForget('end_span', {
       spanName,
       output,
       error: error ? { message: error.message, stack: error.stack } : undefined,
@@ -112,14 +181,13 @@ export class CourtroomTracerClient {
     prompt: string,
     response: string,
   ): Promise<void> {
-    const spanName = `${agent}_${phase}_${Date.now()}`
-    await this.startSpan(spanName, agent, phase, { prompt })
-    await this.endSpan(spanName, { response })
+    // Use the new logLLMInteraction method
+    this.logLLMInteraction(agent, phase, prompt, response)
   }
 
   async recordPhaseCompletion(phase: string, outcome: unknown): Promise<void> {
     if (this.debug) {
-      console.log(`✅ Phase completed: ${phase}`, outcome)
+      console.log(`[Opik Client] ✅ Phase completed: ${phase}`, outcome)
     }
   }
 
@@ -128,7 +196,8 @@ export class CourtroomTracerClient {
     reasoning: string,
     confidence?: number,
   ): Promise<void> {
-    await this.callApi('record_verdict', {
+    // Fire and forget for verdict too
+    this.fireAndForget('record_verdict', {
       verdict,
       reasoning,
       confidence,
@@ -142,7 +211,7 @@ export class CourtroomTracerClient {
   cleanup(): void {
     // Client-side cleanup if needed
     if (this.debug) {
-      console.log('🧹 CourtroomTracer cleaned up (client)')
+      console.log('[Opik Client] 🧹 CourtroomTracer cleaned up')
     }
   }
 }

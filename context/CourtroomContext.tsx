@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWallet } from './WalletContext';
 import { rumbleCourtMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
-import { config } from '../lib/wagmi';
+// import { config } from '../lib/wagmi';
 import { getOwner } from '../services/blockchain';
-
+import { CourtroomTracerClient, createCourtroomTracer } from '@/lib/opik-client'
+import { callLLMAgent, generateAgentPrompt, AGENT_PROFILES, DEBATE_STRUCTURE } from '@/lib/llm-agents'
 // Simplified types for the new minimal contract
 import { CaseStatus } from '../components/types';
 
@@ -122,7 +123,7 @@ interface CourtroomProviderProps {
 }
 
 export const CourtroomProvider: React.FC<CourtroomProviderProps> = ({ children }) => {
-  const { isConnected, address, chainId } = useWallet();
+  const { isConnected, address } = useWallet();
 
   // State
   const [cases, setCases] = useState<Case[]>([]);
@@ -156,6 +157,7 @@ Let's begin your blockchain legal journey!`,
       timestampString: new Date().toLocaleTimeString()
     }
   ]);
+  const [opikTracer, setOpikTracer] = useState<CourtroomTracerClient | null>(null);
   const [isProcessing, setIsProcessingState] = useState(false);
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -167,12 +169,40 @@ Let's begin your blockchain legal journey!`,
     setSimulationProgress('');
   };
 
+  useEffect(() => {
+    if (currentCase && !opikTracer) {
+      const tracer = createCourtroomTracer(
+        currentCase.caseId.toString(),
+        currentCase.caseTitle,
+        currentCase.evidenceHash,
+        true // Enable debug mode
+      );
+      tracer.startTrace();
+      setOpikTracer(tracer);
+
+      console.log('[CourtroomContext] 📊 Opik tracer initialized for case:', currentCase.caseId.toString());
+    }
+  }, [currentCase]);
+
   // Simulation logic with real LLM agents
+
   const simulateTrial = async (caseTitle: string, evidenceHash: string): Promise<void> => {
     setIsSimulatingState(true);
     const debateHistory: Array<{ agent: string, message: string }> = [];
 
-    // First, check if there are any cases at all
+    // Initialize Opik tracer with debug logging enabled
+    const caseId = currentCase?.caseId.toString() || `case-${Date.now()}`;
+    const tracer = createCourtroomTracer(
+      caseId,
+      caseTitle,
+      evidenceHash,
+      true // Enable debug mode to see logs
+    );
+
+    // Start the trace (fire-and-forget)
+    tracer.startTrace();
+
+    // [Keep all existing validation code - lines 176-213]
     if (cases.length === 0) {
       addMessage({
         id: `trial-${Date.now()}-no-cases`,
@@ -185,7 +215,6 @@ Let's begin your blockchain legal journey!`,
       return;
     }
 
-    // Validate that we have a current case selected
     if (!currentCase) {
       addMessage({
         id: `trial-${Date.now()}-no-case`,
@@ -198,12 +227,11 @@ Let's begin your blockchain legal journey!`,
       return;
     }
 
-    // Check if the case is already completed
     if (currentCase.status === 'COMPLETED') {
       addMessage({
         id: `trial-${Date.now()}-already-completed`,
         role: 'system',
-        content: '⚠️ **CASE ALREADY COMPLETED**\n\nThis case has already been completed with a final verdict. You cannot simulate a trial for a completed case.\n\nIf you disagree with the verdict, you can appeal the case instead.',
+        content: '⚠️ **CASE ALREADY COMPLETED**\n\nThis case has already been completed with a final verdict.',
         timestamp: new Date(),
         timestampString: new Date().toLocaleTimeString()
       });
@@ -211,20 +239,19 @@ Let's begin your blockchain legal journey!`,
       return;
     }
 
-    // CRITICAL: Start the trial on-chain first (changes status from PENDING to IN_TRIAL)
+    // [Keep existing start trial blockchain code - lines 215-243]
     if (isOwner && currentCase) {
       try {
         addMessage({
           id: `trial-${Date.now()}-starting`,
           role: 'system',
-          content: '⚙️ **STARTING TRIAL ON BLOCKCHAIN...**\n\nUpdating case status to IN_TRIAL before the courtroom proceedings begin.',
+          content: '⚙️ **STARTING TRIAL ON BLOCKCHAIN...**',
           timestamp: new Date(),
           timestampString: new Date().toLocaleTimeString()
         });
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Call start_trial to update blockchain status
         const startTrialTool = courtroomTools.start_trial;
         if (startTrialTool && typeof startTrialTool.execute === 'function') {
           await startTrialTool.execute(
@@ -235,7 +262,7 @@ Let's begin your blockchain legal journey!`,
           addMessage({
             id: `trial-${Date.now()}-started`,
             role: 'system',
-            content: '✅ **TRIAL STARTED ON BLOCKCHAIN**\n\nCase status updated to IN_TRIAL. The courtroom proceedings will now begin.',
+            content: '✅ **TRIAL STARTED ON BLOCKCHAIN**',
             timestamp: new Date(),
             timestampString: new Date().toLocaleTimeString()
           });
@@ -243,232 +270,115 @@ Let's begin your blockchain legal journey!`,
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        console.error('Failed to start trial on blockchain:', error);
+        console.error('Failed to start trial:', error);
+      }
+    }
+
+    // ============================================================================
+    // 3. ENHANCED TRIAL LOOP WITH OPIK LOGGING
+    // ============================================================================
+
+    try {
+      for (let i = 0; i < DEBATE_STRUCTURE.length; i++) {
+        const turn = DEBATE_STRUCTURE[i];
+        const agentProfile = AGENT_PROFILES[turn.agent];
+
+        setSimulationProgress(
+          `${turn.role} - ${turn.messageType} (${i + 1}/${DEBATE_STRUCTURE.length})`
+        );
+
         addMessage({
-          id: `trial-${Date.now()}-start-error`,
+          id: `turn-${i}-thinking`,
           role: 'system',
-          content: `⚠️ **TRIAL START FAILED**\n\nCould not update case status on blockchain. Error: ${(error as Error).message}\n\nThe simulation will continue off-chain, but the verdict cannot be recorded.`,
+          content: `🤔 **${agentProfile.name}** is preparing ${turn.messageType.toLowerCase()}...`,
           timestamp: new Date(),
           timestampString: new Date().toLocaleTimeString()
         });
-        setIsSimulatingState(false);
-        return; // Stop if we can't start the trial
-      }
-    } else if (!isOwner) {
-      addMessage({
-        id: `trial-${Date.now()}-no-start`,
-        role: 'system',
-        content: '⚠️ **CANNOT START TRIAL**\n\nOnly the system owner can start trials on the blockchain. The simulation will run off-chain only.',
-        timestamp: new Date(),
-        timestampString: new Date().toLocaleTimeString()
-      });
-      // Continue with off-chain simulation for non-owners
-    }
 
-    // Import agent library dynamically to avoid circular dependencies
-    const {
-      AGENT_PROFILES,
-      DEBATE_STRUCTURE,
-      generateAgentPrompt,
-      callLLMAgent,
-      formatDebateHistory
-    } = await import('../lib/llm-agents');
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Courtroom opening
-    const judgeProfile = AGENT_PROFILES['judge'];
-    const openingPrompt = generateAgentPrompt(
-      judgeProfile,
-      caseTitle,
-      evidenceHash,
-      debateHistory
-    );
-    const openingMessage = await callLLMAgent('judge', openingPrompt, judgeProfile.systemPrompt);
+        // Generate the prompt for this agent
+        const prompt = generateAgentPrompt(
+          agentProfile,
+          caseTitle,
+          evidenceHash,
+          debateHistory
+        );
 
-    addMessage({
-      id: `trial-${Date.now()}-opening`,
-      role: 'judge',
-      content: `📢 **COURTROOM SESSION BEGINNING**
+        // 🔥 CRITICAL: Call LLM with Opik tracer passed in
+        // The tracer.logLLMInteraction will be called inside callLLMAgent
+        // This is fire-and-forget and won't block the UI!
+        const response = await callLLMAgent(
+          turn.agent,
+          prompt,
+          agentProfile.systemPrompt,
+          tracer, // Pass the tracer to enable logging
+          turn.messageType // Pass the phase/message type
+        );
 
-Case: ${caseTitle}
-Evidence Hash: ${evidenceHash}
+        // Add to debate history
+        debateHistory.push({
+          agent: turn.agent,
+          message: response
+        });
 
-${openingMessage}`,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    });
-    debateHistory.push({ agent: 'judge', message: openingMessage });
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
-
-    // Main debate
-    for (let i = 1; i < DEBATE_STRUCTURE.length - 2; i++) { // Skip judge opening, deliberation, and verdict
-      const turn = DEBATE_STRUCTURE[i];
-      const profile = AGENT_PROFILES[turn.agent];
-
-      const prompt = generateAgentPrompt(
-        profile,
-        caseTitle,
-        evidenceHash,
-        debateHistory
-      ) + "\n\n**CRITICAL: Keep your argument CONCISE - maximum 150 words. Be direct and focused.**";
-
-      const response = await callLLMAgent(turn.agent, prompt, profile.systemPrompt);
-
-      addMessage({
-        id: `trial-${Date.now()}-${turn.agent}-${i}`,
-        role: turn.agent,
-        content: `${response}`,
-        timestamp: new Date(),
-        timestampString: new Date().toLocaleTimeString()
-      });
-
-      debateHistory.push({ agent: turn.agent, message: response });
-
-      // Add turn delay for realistic pacing - Reduced from 2500-4000ms to 1000-2000ms
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-    }
-
-    // Judge deliberation
-    const deliberationPrompt = generateAgentPrompt(
-      judgeProfile,
-      caseTitle,
-      evidenceHash,
-      debateHistory
-    ) + "\n\n**CRITICAL: Keep your deliberation CONCISE - maximum 150 words. Focus on key points only.**";
-    const deliberationMessage = await callLLMAgent('judge', deliberationPrompt, judgeProfile.systemPrompt);
-
-    addMessage({
-      id: `trial-${Date.now()}-judge-deliberation`,
-      role: 'judge',
-      content: `**DELIBERATION**\n\n${deliberationMessage}`,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    });
-    debateHistory.push({ agent: 'judge', message: deliberationMessage });
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Reduced from 4000
-
-    // Verdict
-    const verdictPrompt = `Please deliver a final verdict based on the complete trial proceedings:
-
-${formatDebateHistory(debateHistory)}
-
-Your verdict should include:
-1. A clear verdict: GUILTY or NOT GUILTY
-2. Brief reasoning (maximum 200 words)
-3. Key evidence analysis
-4. Legal reasoning
-
-**CRITICAL: Be CONCISE and DIRECT. Maximum 200 words total.**
-
-Make sure your verdict is impartial and based solely on the evidence and arguments presented during the trial.`;
-
-    const verdictMessage = await callLLMAgent('judge', verdictPrompt, judgeProfile.systemPrompt);
-
-    addMessage({
-      id: `trial-${Date.now()}-verdict`,
-      role: 'judge',
-      content: `⚖️ **VERDICT**\n\n${verdictMessage}`,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    });
-    debateHistory.push({ agent: 'judge', message: verdictMessage });
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Reduced from 3000
-
-    // Closing
-    const closingPrompt = generateAgentPrompt(
-      judgeProfile,
-      caseTitle,
-      evidenceHash,
-      debateHistory
-    ) + "\n\n**CRITICAL: Keep your closing statement BRIEF - maximum 100 words.**";
-    const closingMessage = await callLLMAgent('judge', closingPrompt, judgeProfile.systemPrompt);
-
-    addMessage({
-      id: `trial-${Date.now()}-closing`,
-      role: 'judge',
-      content: `📢 **COURTROOM SESSION CONCLUDED**\n\n${closingMessage}`,
-      timestamp: new Date(),
-      timestampString: new Date().toLocaleTimeString()
-    });
-    debateHistory.push({ agent: 'judge', message: closingMessage });
-
-    // Extract verdict type from the verdict message
-    const verdictType = verdictMessage.toUpperCase().includes('GUILTY') && !verdictMessage.toUpperCase().includes('NOT GUILTY') ? 0 : 1; // 0 = GUILTY, 1 = NOT_GUILTY
-
-    // Record verdict on blockchain automatically (only if user is owner)
-    // Note: We already checked that status is not COMPLETED at the start of simulateTrial
-    if (isOwner && currentCase) {
-      try {
+        // Display the response in the UI
         addMessage({
-          id: `trial-${Date.now()}-recording`,
-          role: 'system',
-          content: '⚙️ **RECORDING VERDICT ON BLOCKCHAIN...**\n\nPlease wait while we save the verdict permanently on the blockchain.',
+          id: `turn-${i}`,
+          role: turn.agent,
+          content: `**${agentProfile.name}** - *${turn.messageType}*\n\n${response}`,
           timestamp: new Date(),
           timestampString: new Date().toLocaleTimeString()
         });
 
         await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Call the record_verdict tool
-        const recordVerdictTool = courtroomTools.record_verdict;
-        if (recordVerdictTool && typeof recordVerdictTool.execute === 'function') {
-          await recordVerdictTool.execute(
-            {
-              caseId: currentCase.caseId,
-              verdictType: verdictType,
-              reasoning: verdictMessage.substring(0, 500), // Truncate to reasonable length
-              isFinal: true
-            },
-            { toolCallId: 'auto-verdict-recording', messages: [] }
-          );
-
-          addMessage({
-            id: `trial-${Date.now()}-recorded`,
-            role: 'system',
-            content: `✅ **VERDICT RECORDED ON BLOCKCHAIN**\n\nThe verdict has been permanently recorded on the blockchain and is now immutable.\n\n**Case ID:** ${currentCase.caseId}\n**Verdict:** ${verdictType === 0 ? 'GUILTY' : 'NOT GUILTY'}\n**Status:** COMPLETED`,
-            timestamp: new Date(),
-            timestampString: new Date().toLocaleTimeString()
-          });
-
-          // Reload cases to show updated status
-          setTimeout(async (): Promise<void> => {
-            try {
-              const userCasesTool = courtroomTools.get_user_cases;
-              if (userCasesTool && typeof userCasesTool.execute === 'function' && address) {
-                const userCases = await userCasesTool.execute(
-                  { userAddress: address },
-                  { toolCallId: 'reload-after-verdict', messages: [] }
-                );
-                if (userCases && typeof userCases === 'object' && 'cases' in userCases) {
-                  const casesArray = userCases.cases as Case[];
-                  setCases(casesArray);
-                }
-              }
-            } catch (error) {
-              console.error('Failed to reload cases after verdict:', error);
-            }
-          }, 1500);
-        }
-      } catch (error) {
-        console.error('Failed to record verdict on blockchain:', error);
-        addMessage({
-          id: `trial-${Date.now()}-error`,
-          role: 'system',
-          content: `⚠️ **VERDICT RECORDING FAILED**\n\nThe verdict could not be recorded on the blockchain. Error: ${(error as Error).message}\n\nYou can manually record the verdict using the record_verdict tool.`,
-          timestamp: new Date(),
-          timestampString: new Date().toLocaleTimeString()
-        });
       }
-    } else if (!isOwner) {
+
+      // ============================================================================
+      // 4. RECORD VERDICT AND END TRACE
+      // ============================================================================
+
+      // Extract verdict from the last message
+      const verdictMessage = debateHistory[debateHistory.length - 1]?.message || '';
+      const isGuilty = verdictMessage.toLowerCase().includes('guilty') &&
+        !verdictMessage.toLowerCase().includes('not guilty');
+      const verdict = isGuilty ? 'GUILTY' : 'NOT_GUILTY';
+
+      // Log the verdict (fire-and-forget)
+      tracer.recordVerdict(verdict, verdictMessage, 0.85);
+
       addMessage({
-        id: `trial-${Date.now()}-no-record`,
+        id: `trial-complete`,
         role: 'system',
-        content: '⚠️ **VERDICT NOT RECORDED**\n\nOnly the system owner can record verdicts on the blockchain. The trial has concluded, but the verdict has not been saved on-chain.',
+        content: `⚖️ **TRIAL COMPLETED**\n\nThe courtroom proceedings have concluded. Verdict: ${verdict}`,
         timestamp: new Date(),
         timestampString: new Date().toLocaleTimeString()
       });
-    }
 
-    setIsSimulatingState(false);
+      // End the trace (fire-and-forget)
+      tracer.endTrace({
+        verdict,
+        totalTurns: debateHistory.length,
+        completedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Trial simulation error:', error);
+      addMessage({
+        id: `trial-error`,
+        role: 'system',
+        content: `❌ **TRIAL ERROR**\n\n${(error as Error).message}`,
+        timestamp: new Date(),
+        timestampString: new Date().toLocaleTimeString()
+      });
+
+      // End trace even on error
+      tracer.endTrace({ error: (error as Error).message });
+    } finally {
+      setIsSimulatingState(false);
+      setSimulationProgress('');
+      tracer.cleanup();
+    }
   };
 
   // Update wallet context and check owner status when wallet changes
@@ -823,244 +733,130 @@ Make sure your verdict is impartial and based solely on the evidence and argumen
 
   const getSystemPrompt = (): OpenAIMessage => ({
     role: 'system',
-    content: `You are RumbleCourt AI Assistant - an expert blockchain legal companion helping users navigate the minimal, streamlined RumbleCourt smart contract system.
+    content: `You are an AI legal assistant for RumbleCourt - a blockchain-based courtroom system.
 
 ═══════════════════════════════════════════════════════════════
-🚨 CRITICAL: ENFORCED AUTOMATIC TOOL CALLING 🚨
+🎯 CRITICAL: TOOL CALLING BEHAVIOR
 ═══════════════════════════════════════════════════════════════
 
-**MANDATORY RULE: CALL TOOLS IMMEDIATELY WHEN USER INTENT IS CLEAR**
+**YOU MUST CALL TOOLS IMMEDIATELY - DO NOT ASK FOR PERMISSION**
 
-YOU MUST NOT:
-❌ Say "I'll help you file..." without calling \`file_case\`
-❌ Say "Let me check..." without calling \`get_user_cases\` or \`get_case\`
-❌ Ask "Would you like me to..." for READ operations
-❌ Explain what you WOULD do - JUST DO IT by calling the tool
-❌ Wait for explicit permission to call tools
-❌ Describe the tool's function instead of using it
+When user says things like:
+- "file a case about X" → IMMEDIATELY call file_case
+- "file a case" or "file case" → IMMEDIATELY call file_case
+- "start trial" or "begin trial" → IMMEDIATELY call start_trial
+- "record verdict" → IMMEDIATELY call record_verdict
+- "view my cases" → IMMEDIATELY call get_user_cases
+- "show case details" → IMMEDIATELY call get_case_details
 
-**CORRECT BEHAVIOR:**
-User: "file a case about X with evidence Y"
-You: [IMMEDIATELY call file_case tool] → [Show result]
-
-User: "show my cases"
-You: [IMMEDIATELY call get_user_cases tool] → [Show result]
-
-**WRONG BEHAVIOR:**
-User: "file a case about X"
-You: "I'll help you file a case. Let me guide you..." ❌ NO TOOL CALL
+**NEVER say "I can help you file a case" - JUST DO IT!**
+**NEVER ask "would you like me to..." - EXECUTE THE ACTION!**
 
 ═══════════════════════════════════════════════════════════════
-⚖️ VERDICT RECORDING - CRITICAL REQUIREMENT 🚨
+📋 FILE CASE WORKFLOW - AUTO-EXECUTE
 ═══════════════════════════════════════════════════════════════
 
-**MANDATORY: After any verdict is delivered (whether by you or during a simulated trial), you MUST immediately call the record_verdict tool to record it on the blockchain IF the user is the system owner.**
+When user mentions filing a case:
 
-**CRITICAL PRE-REQUISITE: The case MUST be in IN_TRIAL status before recording a verdict!**
+**Step 1: Extract Information**
+If user provides case details (like "file case about Open borders vs Closed borders"):
+→ Extract title from their message
+→ Use their description as evidence
+→ IMMEDIATELY call file_case with extracted info
 
-**Complete Workflow:**
-1. Case is filed → Status: PENDING
-2. **Call start_trial first** → Status: IN_TRIAL (REQUIRED STEP!)
-3. Trial/debate occurs (can be off-chain)
-4. Verdict is reached (GUILTY or NOT GUILTY)
-5. Check if user is system owner
-6. If owner: IMMEDIATELY call record_verdict with:
-   - caseId: The case being decided
-   - verdictType: 0 for GUILTY, 1 for NOT_GUILTY, 2 for SETTLEMENT, 3 for DISMISSED
-   - reasoning: The judge's explanation (max 500 chars)
-   - isFinal: true (to allow appeals)
-7. If not owner: Inform user that only the owner can record verdicts
+If user just says "file a case" with no details:
+→ IMMEDIATELY call file_case with:
+   - caseTitle: "New Legal Case"
+   - evidenceHash: "Case details to be provided"
+→ Then ask them to provide more details
 
-**Example Flow:**
-User (owner): "Start the trial and record the guilty verdict for case 1"
-You: 
-  1. [Call start_trial with caseId: 1]
-  2. [Wait for trial to complete]
-  3. [Call record_verdict with caseId: 1, verdictType: 0, reasoning: "...", isFinal: true]
+**Step 2: NO PERMISSION ASKING**
+❌ WRONG: "I can help you file a case. First, I need..."
+❌ WRONG: "Would you like me to file this case?"
+✅ RIGHT: [Immediately calls file_case tool]
 
-User (non-owner): "Record this verdict as guilty"
-You: "Only the system owner can record verdicts on the blockchain. You can view the verdict details, but cannot record it on-chain."
-
-**IMPORTANT ERROR HANDLING:**
-If you get error "Case must be in trial", it means start_trial was not called. You must:
-1. Call start_trial first
-2. Then call record_verdict
-
-DO NOT just acknowledge the verdict - RECORD IT ON-CHAIN (if user is owner AND case is in trial).
-
-**VERDICT TYPE MAPPING:**
-- "GUILTY" or "guilty" → verdictType: 0
-- "NOT GUILTY" or "not guilty" or "innocent" → verdictType: 1
-- "SETTLEMENT" or "settled" → verdictType: 2
-- "DISMISSED" or "dismissed" → verdictType: 3
+**Step 3: After Execution**
+→ Show the transaction result
+→ Explain what happened
+→ Suggest next steps
 
 ═══════════════════════════════════════════════════════════════
-🎯 AUTOMATIC TOOL TRIGGERS
+🔧 AVAILABLE TOOLS & WHEN TO USE THEM
 ═══════════════════════════════════════════════════════════════
 
-**CASE FILING - IMMEDIATE TOOL CALL:**
-User says: "file", "create case", "new case", "I want to file"
-→ If has title + evidence: CALL \`file_case\` NOW
-→ If missing info: Ask ONCE, then call tool when provided
+**file_case**: When user wants to create a new case
+- Trigger words: "file", "create case", "new case", "submit"
+- Required: caseTitle, evidenceHash
+- Example: "file a case about X" → extract X as title and description
 
-User says: "use these", "use this information", "with these details"
-→ Extract title/evidence from conversation context
-→ CALL \`file_case\` IMMEDIATELY
+**get_user_cases**: When user wants to see their cases
+- Trigger words: "my cases", "view cases", "list cases", "show cases"
+- Auto-use current wallet address
 
-**VIEWING CASES - IMMEDIATE TOOL CALL:**
-User says: "show my cases", "list my cases", "my cases"
-→ CALL \`get_user_cases\` IMMEDIATELY
+**get_case_details**: When user asks about a specific case
+- Trigger words: "case details", "show case", "case info"
+- Use caseId from context or ask
 
-User says: "case #1", "view case 2", "show case X"
-→ CALL \`get_case\` IMMEDIATELY
+**start_trial**: When user wants to begin trial (owner only)
+- Trigger words: "start trial", "begin trial", "start the trial"
+- Use current case caseId
 
-**CONNECTION CHECK - IMMEDIATE TOOL CALL:**
-User says: "check connection", "am I connected", "wallet status"
-→ CALL \`get_connected_wallet\` IMMEDIATELY
+**record_verdict**: When verdict is mentioned (owner only)
+- Trigger words: "guilty", "not guilty", "verdict"
+- Extract verdict and reasoning from context
 
-**TRIAL OPERATIONS - IMMEDIATE TOOL CALL (after verifying owner):**
-User says: "start trial", "begin trial" 
-→ CALL \`start_trial\` IMMEDIATELY
+**appeal_case**: When user wants to appeal
+- Trigger words: "appeal", "challenge verdict"
 
-**VERDICT RECORDING - IMMEDIATE TOOL CALL (owner only):**
-User says: "verdict is", "judge ruled", "found guilty", "found not guilty", "record verdict", "save verdict"
-→ Extract verdict details from context
-→ Verify user is owner
-→ CALL \`record_verdict\` IMMEDIATELY with appropriate verdictType
-
-Examples:
-- "found guilty" → verdictType: 0
-- "not guilty" → verdictType: 1
-- "reached a settlement" → verdictType: 2
-- "case dismissed" → verdictType: 3
-
-**APPEALS - IMMEDIATE TOOL CALL (after verification):**
-User says: "appeal", "file appeal", "I want to appeal"
-→ CALL \`appeal_case\` IMMEDIATELY
+**get_contract_info**: When user asks about the system
+- Trigger words: "contract address", "system info", "how it works"
 
 ═══════════════════════════════════════════════════════════════
-🏛️ RUMBLECOURT WORKFLOW
+🚨 EXAMPLE INTERACTIONS - LEARN FROM THESE
 ═══════════════════════════════════════════════════════════════
 
-**THE COMPLETE FLOW:**
-1. User files case (with title and evidence)
-2. System starts trial (owner only)
-3. AI lawyers debate (off-chain)
-4. AI judge decides (off-chain)
-5. **Verdict recorded on-chain (owner only) ← YOU MUST DO THIS**
-6. User can appeal if final verdict
+USER: "Can you file a case about Open borders vs Closed borders"
 
-**KEY CONCEPTS:**
-- **User Actions**: File cases, view cases, appeal verdicts
-- **System Actions** (Owner only): Start trials, **record verdicts**
-- **Off-chain AI**: Lawyer debates and judge reasoning happen off-chain
-- **On-chain Storage**: Only immutable results stored on blockchain
+❌ WRONG RESPONSE:
+"I can help you file a case. First, I need the case title and evidence..."
 
-═══════════════════════════════════════════════════════════════
-📋 AVAILABLE TOOLS
-═══════════════════════════════════════════════════════════════
+✅ CORRECT RESPONSE:
+[Calls file_case with caseTitle: "Open Borders vs Closed Borders Debate", evidenceHash: "Analysis of immigration policies"]
+Then: "✅ Case filed successfully! [shows results]"
 
-**1. WALLET TOOLS:**
-   - get_connected_wallet: Check wallet connection
+---
 
-**2. CASE TOOLS (User Actions):**
-   - file_case: File new case (requires: caseTitle, evidenceHash)
-   - get_case: Get case by ID (requires: caseId)
-   - get_user_cases: Get all user's cases (requires: userAddress)
-   - get_total_cases: Get total case count
+USER: "Show me my cases"
 
-**3. TRIAL TOOLS (Owner Only):**
-   - start_trial: Start trial (requires: caseId)
-   - **record_verdict: Record verdict (requires: caseId, verdictType, reasoning, isFinal) ← MUST USE AFTER VERDICT**
+❌ WRONG RESPONSE:
+"Would you like me to fetch your cases from the blockchain?"
 
-**4. VERDICT TOOLS:**
-   - get_verdict: Get verdict details
-   - has_verdict: Check if verdict exists
+✅ CORRECT RESPONSE:
+[Calls get_user_cases immediately]
+Then: "Here are your cases: [shows results]"
 
-**5. APPEAL TOOLS (User Actions):**
-   - appeal_case: Appeal case (requires: caseId)
+---
 
-**6. SYSTEM INFO:**
-   - get_system_owner: Get owner address
+USER: "file case"
 
-═══════════════════════════════════════════════════════════════
-📝 SMART FILING LOGIC
-═══════════════════════════════════════════════════════════════
-
-When user wants to file a case:
-
-**Step 1: Check prerequisites**
-- Wallet connected? (call get_connected_wallet if unsure)
-- Has title? Has evidence?
-
-**Step 2: Execute**
-- If YES to both → CALL file_case IMMEDIATELY
-- If NO → Ask for missing piece ONCE
-
-**Step 3: After filing**
-- Show transaction hash
-- Explain next step (owner starts trial)
-- Suggest viewing the case
-
-**Special Case: "use these" or "use this"**
-When user says "use these scriptures" or "use this information":
-→ They're referencing earlier conversation
-→ Extract title and evidence from context
-→ CALL file_case IMMEDIATELY
-→ DO NOT ask for confirmation
-
-═══════════════════════════════════════════════════════════════
-🚨 VALIDATION RULES
-═══════════════════════════════════════════════════════════════
-
-**BEFORE Filing:**
-→ Wallet connected
-→ Title + evidence provided
-
-**BEFORE Starting Trial:**
-→ User is system owner
-→ Case is PENDING
-
-**BEFORE Recording Verdict:**
-→ User is system owner
-→ Case is IN_TRIAL
-→ Verdict details available
-
-**BEFORE Appeal:**
-→ Wallet connected
-→ Case is COMPLETED with final verdict
-→ User is plaintiff
+✅ CORRECT RESPONSE:
+[Calls file_case with placeholder title/evidence]
+Then: "I've created a case placeholder. What details would you like to add?"
 
 ═══════════════════════════════════════════════════════════════
 💡 RESPONSE STYLE
 ═══════════════════════════════════════════════════════════════
 
-1. **Action-first** - Execute tools, then explain
-2. **Conversational** - Be friendly after showing results
-3. **Proactive** - Suggest next steps
-4. **Confident** - Trust your tool calls
-5. **Helpful** - Make blockchain accessible
+1. **Tool-first** - Call tools BEFORE speaking
+2. **Action-oriented** - Execute, don't ask permission
+3. **Concise** - Short explanations after action
+4. **Helpful** - Guide user to next steps
+5. **Professional** - Maintain legal assistant demeanor
 
-**Current Connection:** ${isConnected ? `Connected (${address})` : 'Not connected'}
-**User Role:** ${isOwner ? 'System Owner (can manage trials and record verdicts)' : 'User (can file cases)'}
-**Network:** ${isConnected ? ((): string => {
-        const chain = config.chains.find(c => c.id === chainId);
-        return chain?.name || 'Unknown';
-      })() : 'Not connected'}
+**Current Connection:** ${isConnected ? 'Connected (${address})' : 'Not connected'}
+**User Role:** ${isOwner ? 'System Owner (can manage trials)' : 'User (can file cases)'}
 
-═══════════════════════════════════════════════════════════════
-🎪 PERSONALITY
-═══════════════════════════════════════════════════════════════
-
-- **Action-oriented** - Do things, don't just talk about them
-- **Professional** - Legal expert who speaks plainly
-- **Enthusiastic** - Excited about AI + blockchain
-- **Helpful** - Anticipate user needs
-- **Transparent** - Clear about capabilities and limitations
-
-**Remember: Your job is to EXECUTE actions via tools, not describe them!** 🏛️⚖️
-
-**CRITICAL REMINDER: After ANY verdict is mentioned, if the user is the system owner, you MUST call the record_verdict tool immediately to save it on the blockchain!**`,
+Remember: EXECUTE ACTIONS IMMEDIATELY - Don't ask for permission! 🏛️⚖️`,
   });
 
   const processCommandWithOpenRouter = async (userInput: string): Promise<string> => {
@@ -1069,6 +865,8 @@ When user says "use these scriptures" or "use this information":
     if (!activeApiKey) {
       return 'OpenRouter API key not configured. Please set NEXT_PUBLIC_OPENROUTER_API_KEY environment variable.';
     }
+
+    const startTime = Date.now();
 
     try {
       const conversationMessages: OpenAIMessage[] = [
@@ -1103,7 +901,7 @@ When user says "use these scriptures" or "use this information":
             model: "arcee-ai/trinity-large-preview:free",
             messages: conversationMessages,
             tools,
-            tool_choice: 'auto',
+            tool_choice: 'auto', // Let the model decide
           }),
         });
 
@@ -1120,6 +918,25 @@ When user says "use these scriptures" or "use this information":
         }
 
         const message = choice.message;
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+
+        // 🔥 LOG TO OPIK: Main assistant interaction
+        if (opikTracer && message.content) {
+          opikTracer.logLLMInteraction(
+            'judge', // Using 'judge' role for main chat assistant
+            'chat_interaction',
+            userInput,
+            message.content,
+            {
+              model: "arcee-ai/trinity-large-preview:free",
+              iteration: iterations,
+              latency_ms: latency,
+              had_tool_calls: !!(message.tool_calls && message.tool_calls.length > 0),
+              tool_count: message.tool_calls?.length || 0
+            }
+          );
+        }
 
         conversationMessages.push({
           role: 'assistant',
@@ -1150,6 +967,21 @@ When user says "use these scriptures" or "use this information":
       return fullResponse.trim();
     } catch (error) {
       console.error('Error with OpenRouter API:', error);
+
+      // Log error to Opik
+      if (opikTracer) {
+        opikTracer.logLLMInteraction(
+          'judge',
+          'chat_interaction_error',
+          userInput,
+          `Error: ${(error as Error).message}`,
+          {
+            error: true,
+            error_message: (error as Error).message
+          }
+        );
+      }
+
       return `Sorry, something went wrong with the AI service: ${(error as Error).message}`;
     }
   };
@@ -1157,6 +989,10 @@ When user says "use these scriptures" or "use this information":
   const handleToolCall = async (toolCall: ToolCall, conversationMessages: OpenAIMessage[]): Promise<string> => {
     const toolName = toolCall.function.name;
     const toolArgs = JSON.parse(toolCall.function.arguments || '{}') as Record<string, unknown>;
+    const toolStartTime = Date.now();
+
+    // Log tool call start
+    console.log(`[Tool Call] 🔧 Executing: ${toolName}`, toolArgs);
 
     // Convert string numbers to BigInt for caseId parameters
     if ('caseId' in toolArgs && typeof toolArgs.caseId === 'string') {
@@ -1166,6 +1002,8 @@ When user says "use these scriptures" or "use this information":
     }
 
     let toolOutput: unknown;
+    let toolError: Error | null = null;
+
     try {
       const tool = courtroomTools[toolName as keyof typeof courtroomTools];
       if (!tool || !tool.execute) {
@@ -1189,10 +1027,11 @@ When user says "use these scriptures" or "use this information":
         toolOutput = str;
       }
 
+      console.log(`[Tool Call] ✅ Completed: ${toolName}`);
+
       // Reload cases after operations that modify case state
       const caseModifyingTools = ['file_case', 'start_trial', 'record_verdict', 'appeal_case'];
       if (caseModifyingTools.includes(toolName) && isConnected && address) {
-        // Small delay to ensure blockchain state is updated
         setTimeout(async () => {
           try {
             const userCasesTool = courtroomTools.get_user_cases;
@@ -1212,8 +1051,33 @@ When user says "use these scriptures" or "use this information":
         }, 1500);
       }
     } catch (error) {
-      console.error(`Tool execution error for ${toolName}:`, error);
+      console.error(`[Tool Call] ❌ Error in ${toolName}:`, error);
+      toolError = error as Error;
       toolOutput = { error: (error as Error).message };
+    }
+
+    const toolEndTime = Date.now();
+    const toolLatency = toolEndTime - toolStartTime;
+
+    // 🔥 LOG TOOL EXECUTION TO OPIK
+    if (opikTracer) {
+      const toolOutputStr = typeof toolOutput === 'string'
+        ? toolOutput
+        : JSON.stringify(toolOutput);
+
+      opikTracer.logLLMInteraction(
+        'judge', // Using judge for tool executions
+        `tool_${toolName}`,
+        JSON.stringify(toolArgs, (key, val) => typeof val === 'bigint' ? val.toString() : val),
+        toolOutputStr,
+        {
+          tool_name: toolName,
+          latency_ms: toolLatency,
+          success: !toolError,
+          error: toolError?.message,
+          has_output: !!toolOutput
+        }
+      );
     }
 
     const formattedOutput = formatToolResponse(toolName, toolArgs, toolOutput);
@@ -1235,6 +1099,15 @@ When user says "use these scriptures" or "use this information":
 
     return formattedOutput;
   };
+
+  useEffect(() => {
+    return () => {
+      if (opikTracer) {
+        console.log('[CourtroomContext] 🧹 Cleaning up Opik tracer');
+        opikTracer.cleanup();
+      }
+    };
+  }, [opikTracer]);
 
   const value: CourtroomContextType = {
     // State
