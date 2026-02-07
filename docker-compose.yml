@@ -44,7 +44,7 @@ services:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
       - ./deployments:/app/deployments
-      - next-build:/app/.next   # ← New: persist the Next.js build
+      # ← Removed next-build volume entirely
     working_dir: /app
     command: >
       sh -c "
@@ -64,12 +64,8 @@ services:
         echo '=== Deploying contracts ===' &&
         npm run deploy:local &&
 
-        if [ ! -d '/app/.next' ]; then
-          echo '=== Building Next.js for production (first run) ===' &&
-          npm run build
-        else
-          echo '=== Skipping Next.js build — .next exists ==='
-        fi &&
+        echo '=== Building Next.js for production ===' &&
+        npm run build &&  # ← Always build (clean every time)
 
         echo '=== Starting production server ===' &&
         npm run start
@@ -101,6 +97,4 @@ volumes:
   hardhat-artifacts:
     driver: local
   hardhat-cache:
-    driver: local
-  next-build:          # ← New volume
     driver: local
