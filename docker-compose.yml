@@ -39,16 +39,17 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
-      - hardhat-artifacts:/app/artifacts:ro
+      - hardhat-artifacts:/app/artifacts
+      - hardhat-cache:/app/cache
     working_dir: /app
     # Use a startup script that handles deployment
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
         
-        # Wait for hardhat to be fully accessible
+        # Wait for hardhat to be fully accessible with proper JSON-RPC request
         for i in 1 2 3 4 5 6 7 8 9 10; do
-          if wget -q -O- http://hardhat-node:8545 2>/dev/null; then
+          if wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://hardhat-node:8545 2>/dev/null | grep -q result; then
             echo 'Hardhat node is ready!'
             break
           fi
