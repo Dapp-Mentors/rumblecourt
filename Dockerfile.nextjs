@@ -31,7 +31,9 @@ EXPOSE 3000
 
 # Set environment variables for development
 ENV NODE_ENV=development
-ENV NEXT_PUBLIC_RPC_URL=http://localhost:8545
+# Internal RPC URL for server-side calls (container-to-container)
+ENV RPC_URL=http://hardhat-node:8545
+# NEXT_PUBLIC_RPC_URL will be set via .env file to reverse proxy URL
 ENV NEXT_PUBLIC_ENVIRONMENT=local
 ENV DISABLE_METAMASK_ANALYTICS=true
 ENV DISABLE_METAMASK_TELEMETRY=true

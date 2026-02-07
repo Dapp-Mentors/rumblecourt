@@ -7,18 +7,60 @@ services:
       context: .
       dockerfile: Dockerfile.hardhat
     ports:
-      - "8545:8545"
+      - "8545:8545"  # Expose for reverse proxy
     volumes:
       - .:/app
       - /app/node_modules
+      - hardhat-artifacts:/app/artifacts  # Persist compiled contracts
+      - hardhat-cache:/app/cache
     working_dir: /app
     command: npm run node
     environment:
       - NODE_ENV=development
-      - RPC_URL=http://localhost:8545
+      # Internal RPC URL for container-to-container communication
+      - RPC_URL=http://hardhat-node:8545
     networks:
       - rumblecourt-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8545"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
+
+  # Contract Deployment Service (runs once after hardhat-node is ready)
+  contract-deployer:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - hardhat-artifacts:/app/artifacts
+      - hardhat-cache:/app/cache
+    working_dir: /app
+    environment:
+      - NODE_ENV=development
+      - RPC_URL=http://hardhat-node:8545
+    env_file:
+      - .env
+    networks:
+      - rumblecourt-network
+    depends_on:
+      hardhat-node:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for Hardhat node to be fully ready...' &&
+        sleep 5 &&
+        echo 'Compiling contracts...' &&
+        npm run compile &&
+        echo 'Deploying contracts...' &&
+        npm run deploy:local &&
+        echo 'Contract deployment completed!'
+      "
+    restart: "no"  # Only run once
 
   # Next.js Frontend Development Server
   nextjs-server:
@@ -30,17 +72,32 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next  # Persist Next.js build cache
+      - hardhat-artifacts:/app/artifacts:ro  # Read-only access to contract artifacts
     working_dir: /app
     command: npm run dev
     env_file:
       - .env
       - .env.local
+    environment:
+      # Override with container-to-container URL for server-side calls
+      - RPC_URL=http://hardhat-node:8545
+      # NEXT_PUBLIC_RPC_URL should be set in .env to your reverse proxy URL
     networks:
       - rumblecourt-network
     depends_on:
-      - hardhat-node
+      hardhat-node:
+        condition: service_healthy
+      contract-deployer:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 networks:
   rumblecourt-network:
     driver: bridge
+
+volumes:
+  hardhat-artifacts:
+    driver: local
+  hardhat-cache:
+    driver: local

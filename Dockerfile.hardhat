@@ -1,12 +1,13 @@
 # Multi-stage build for Hardhat development environment
 FROM node:24-alpine AS base
 
-# Install build dependencies
+# Install build dependencies and wget for healthcheck
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    git
+    git \
+    wget
 
 # Set working directory
 WORKDIR /app
@@ -31,7 +32,9 @@ EXPOSE 8545
 
 # Set environment variables for development
 ENV NODE_ENV=development
-ENV RPC_URL=http://localhost:8545
+# Use container name for internal communication
+ENV RPC_URL=http://hardhat-node:8545
 
-# Default command to start Hardhat node
-CMD ["npm", "run", "node"]
+# Default command to start Hardhat node with host binding
+# Binding to 0.0.0.0 allows external access from reverse proxy
+CMD ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
