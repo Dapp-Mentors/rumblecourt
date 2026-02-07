@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cat << EOF > /dockerized/containers/rumblecourt/.env
+            cat << EOF > /dockerized/containers/rumblecourt/.env.local
             NEXT_PUBLIC_OPENROUTER_API_KEY=${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
             NEXT_PUBLIC_OPIK_API_KEY=${{ secrets.NEXT_PUBLIC_OPIK_API_KEY }}
             OPIK_PROJECT_NAME=${{ secrets.OPIK_PROJECT_NAME }}
