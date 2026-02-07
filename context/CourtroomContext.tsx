@@ -300,7 +300,7 @@ Let's begin your blockchain legal journey!`,
       setIsSimulatingState(false);
       return;
     }
-    if (currentCase.status !== 'IN_TRIAL' && currentCase.status !== 'PENDING') {
+    if (currentCase.status !== 'IN_TRIAL' && currentCase.status !== 'PENDING' && currentCase.status !== 'APPEALED') {
       addMessage({ id: `trial-${Date.now()}`, role: 'system', content: '⚠️ **INVALID CASE STATUS**', timestamp: new Date(), timestampString: new Date().toLocaleTimeString() });
       setIsSimulatingState(false);
       return;
@@ -1237,7 +1237,7 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
         // NOTE: Free models don't support 'required', only 'auto' or 'none'
 
         // Try using a better model first, fallback to free if API key issues
-        const modelToUse = "arcee-ai/trinity-large-preview:free";
+        const modelToUse = process.env.NEXT_PUBLIC_LLM_MODEL || "arcee-ai/trinity-large-preview:free";
 
         // Uncomment to use a better model (requires credits on OpenRouter):
         // modelToUse = "anthropic/claude-3.5-sonnet";
@@ -1316,7 +1316,7 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
             userInput,
             message.content,
             {
-              model: "arcee-ai/trinity-large-preview:free",
+              model: process.env.NEXT_PUBLIC_LLM_MODEL || "arcee-ai/trinity-large-preview:free",
               iteration: iterations,
               latency_ms: latency,
               had_tool_calls: !!(message.tool_calls && message.tool_calls.length > 0),

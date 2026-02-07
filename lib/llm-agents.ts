@@ -344,7 +344,7 @@ export const callLLMAgent = async (
           'X-Title': 'RumbleCourt AI',
         },
         body: JSON.stringify({
-          model: 'arcee-ai/trinity-large-preview:free',
+          model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
           messages: [
             {
               role: 'system',
@@ -374,7 +374,7 @@ export const callLLMAgent = async (
     // Log the interaction asynchronously (fire-and-forget)
     if (tracer && phase) {
       tracer.logLLMInteraction(agent, phase, prompt, llmResponse, {
-        model: 'arcee-ai/trinity-large-preview:free',
+        model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
         temperature: agent === 'judge' ? 0.3 : 0.7,
         max_tokens: 400,
         latency_ms: endTime - startTime,

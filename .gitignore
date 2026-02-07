@@ -48,3 +48,6 @@ typechain-types/
 # Explicitly include these files despite other patterns
 !.gitignore
 !services/blockchain.ts
+!artifacts/
+!artifacts/RumbleCourt.json
+!artifacts/contracts/RumbleCourt.sol/RumbleCourt.json

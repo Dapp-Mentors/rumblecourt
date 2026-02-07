@@ -1,224 +1,137 @@
-# RumbleCourt: AI-Powered Courtroom Simulator
+# RumbleCourt: AI-Powered Debate & Courtroom Simulator for Smarter Decisions
+
+![RumbleCourt Interface](screenshots/Lawyers%20Argue%202.png)
+
+**Built for the Commit To Change AI Agents Hackathon (Productivity & Work Habits Category)**  
+*Helping professionals and everyday users turn their 2026 resolution to "think clearer, decide better, and work more efficiently" into lasting habits through structured, multi-perspective reasoning.*
 
 ## 🎯 What is RumbleCourt?
 
-**RumbleCourt** is your personal courtroom simulator where AI lawyers battle it out over your evidence, and a neutral AI judge delivers real verdicts. Think of it as a "legal flight simulator" - practice your case strategy, test your arguments, and see potential outcomes before stepping into a real courtroom.
+RumbleCourt is an AI agent-powered simulator that stages real-time debates between opposing viewpoints on any submitted topic or evidence, culminating in a reasoned verdict from a neutral AI judge.
 
-## 🚀 Why This Matters
+While deeply valuable for legal professionals simulating courtroom scenarios, it’s designed for **everyone**:
+- Test arguments and strategies risk-free
+- Observe both sides of any issue in structured debate
+- Get an unbiased synthesis and likely outcome
+- Build sharper thinking and decision-making habits
 
-**For Legal Professionals:**
-- Preview case outcomes before real litigation
-- Test different legal strategies risk-free
-- Save time and resources on case preparation
-- Improve decision-making with AI-powered insights
+Think of it as a **personal reasoning accelerator** — whether preparing for a legal case, a workplace debate, a public speech, or just exploring a tough personal decision.
 
-**For Everyone:**
-- Understand how legal arguments work
-- See justice in action with transparent, recorded proceedings
-- Access legal simulation without expensive software
+## 🚀 Why RumbleCourt Boosts Productivity & Work Habits
+
+Many people set New Year’s resolutions to:
+- Make faster, more confident decisions
+- Reduce time wasted on unbalanced thinking
+- Build disciplined routines for preparation and analysis
+- Improve focus and output in high-stakes situations
+
+RumbleCourt turns those intentions into sustainable habits by:
+
+- **Accelerating preparation time** — Run full debate cycles in minutes instead of hours of solo brainstorming or research
+- **Reducing decision paralysis** — Quickly surface strengths, weaknesses, and likely outcomes from both sides
+- **Training balanced reasoning** — Regular use reinforces the habit of considering opposing views before acting
+- **Fitting into daily workflows** — Short, focused simulations make structured thinking a repeatable routine rather than an occasional effort
+
+The outcome: higher-quality work, fewer missteps, and consistent professional (or personal) momentum all year long.
 
 ## 🎪 How It Works
 
-1. **Connect Wallet** - Securely connect your MetaMask or WalletConnect wallet
-2. **File Your Case** - Submit case details and evidence through the command terminal
-3. **AI Lawyers Battle** - Watch as opposing AI attorneys debate your case in real-time
-4. **Judge Delivers Verdict** - A neutral AI judge analyzes everything and renders a decision
-5. **Immutable Record** - Every trial is permanently recorded on the blockchain for transparency
+1. **Connect Wallet** – Securely link MetaMask or WalletConnect (for on-chain recording)
+2. **Submit Your Topic/Case** – Enter details and evidence via the intuitive command terminal
+3. **AI Agents Debate** – Specialised LLM agents take opposing sides and argue dynamically in real-time
+4. **Neutral Judge Decides** – An unbiased AI judge analyses everything and delivers a reasoned verdict
+5. **Immutable Record** – Full proceedings and outcome permanently stored on Polygon for reference and transparency
 
 ## ✨ Key Features
 
-### 🤖 AI-Powered Legal Teams
-- **Prosecution & Defense**: Two AI lawyers with opposing viewpoints
-- **Real-Time Debates**: Dynamic courtroom arguments that adapt to your evidence
-- **Evidence Analysis**: AI examines documents, photos, and testimony
+### 🤖 Autonomous Multi-Agent Reasoning System
+- Three specialised agents: two advocates with opposing stances + one neutral judge
+- Real-time adaptive arguments that respond to your evidence and prompts
+- Advanced prompt engineering for depth, fairness, and logical rigor
 
-### ⚖️ Fair & Transparent
-- **Neutral Judge**: Unbiased AI judge focused only on the facts
-- **Blockchain Recording**: Every word, argument, and verdict is permanently stored
-- **Public Ledger**: Transparent proceedings anyone can verify
+### ⚖️ Transparent & Structured Outcomes
+- Judge focused purely on logic, evidence, and balance
+- Immutable blockchain record of every exchange and verdict
+- Verifiable proceedings without exposing sensitive details
 
-### 🎮 User-Friendly Experience
-- **Command Terminal**: Simple text-based interface for case management
-- **Live Simulation**: Watch the trial unfold in real-time with animated courtroom
-- **Case History**: View all your cases with status tracking
-- **Quick Actions**: One-click commands for common tasks
+### 📈 Habit-Building Workflow
+- Rapid iteration: test multiple angles or evidence sets in one session
+- Case/debate history dashboard with easy revisit and comparison
+- Simple one-click commands for starting, adding evidence, or requesting verdict
 
-## 🛠 Tech Stack
+### 🔍 Built-in Observability with Opik
+- Full tracing of agent reasoning chains and performance
+- Automated metrics for argument quality, coherence, and balance
+- Insights to refine prompts and improve simulation reliability over time
+
+![Judge Verdict 1](screenshots/Judge%20Verdict%201.png)
+
+## 🛠 Tech Stack (Hackathon Highlights)
 
 - **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
-- **AI Brains**: OpenRouter models (Trinity Large Preview) with Opik observability
-- **Blockchain**: Polygon testnet (Mumbai) with Solidity smart contracts
-- **Smart Contract**: Minimal courtroom contract with case lifecycle management
-- **AI Observability**: Opik SDK for LLM interaction tracing and optimization
-- **Wallet Integration**: MetaMask/WalletConnect via wagmi
-- **State Management**: React Context API
-- **Styling**: Tailwind CSS with custom animations
-
-## 📁 Project Structure
-
-```
-rumbleCourt/
-├── app/                    # Frontend application
-│   ├── courtroom/         # Main simulation interface
-│   ├── history/           # View past cases
-│   ├── api/               # Backend endpoints
-│   └── components/        # Reusable UI components
-├── contracts/             # Blockchain smart contracts
-│   └── RumbleCourt.sol    # Minimal courtroom contract
-├── lib/                   # Core logic & configurations
-│   ├── llm-agents.ts      # AI agent management
-│   ├── courtroom-mcp-tools.ts # Blockchain interaction tools
-│   └── opik-client.ts     # AI interaction logging
-├── services/              # Backend services
-│   └── blockchain.ts      # Contract interaction layer
-├── context/               # React context providers
-│   ├── CourtroomContext.tsx # Main application state
-│   └── WalletContext.tsx    # Wallet connection state
-├── components/            # UI components
-│   ├── CourtroomSimulation.tsx # Main terminal interface
-│   ├── CaseHistorySidebar.tsx  # Case management sidebar
-│   └── TerminalMessage.tsx     # Message display component
-└── scripts/               # Deployment & utilities
-```
+- **AI Agents**: OpenRouter (Agentic Trinity model) with sophisticated reasoning chains
+- **Observability & Evaluation**: Deep Opik SDK integration for tracing and optimisation
+- **Blockchain**: Polygon Amoy testnet + Solidity contracts for immutable records
+- **Wallet Integration**: wagmi + WalletConnect/MetaMask
+- **Real-time Interface**: Live terminal feed with animated courtroom visuals
 
 ## 🚀 Quick Start
 
-### For Users (No Coding Required)
-1. Visit our live demo
-2. Connect your wallet (MetaMask or similar)
-3. Use the command terminal to file your first case
-4. Watch the AI courtroom drama unfold!
+### For Everyone (No Coding Needed)
+1. Visit the live demo
+2. Connect your wallet (optional for public simulations)
+3. Use the command terminal to submit a topic and evidence
+4. Watch the debate unfold and review the judge’s verdict — in minutes!
 
 ### For Developers
 ```bash
-# Clone and setup
 git clone https://github.com/Dapp-Mentors/rumblecourt.git
-cd rumbleCourt
+cd rumblecourt
 npm install
 
-# Configure environment variables
 cp .env.local.example .env.local
-# Edit .env.local with your API keys:
-# NEXT_PUBLIC_OPENROUTER_API_KEY=your_key_here
-# NEXT_PUBLIC_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your_key
+# Add your OpenRouter key and Polygon RPC URL
 
-# Start development server
 npm run dev
-
-# Optional: Local blockchain development
-# In another terminal, start local blockchain
-npm run node
-
-# Deploy contract to local network
-npm run deploy:local
-
-# Run tests
-npm run test
-
-# Check code quality
-npm run lint
 ```
 
-### Smart Contract Development
-```bash
-# Compile contracts
-npx hardhat compile
+## 🎯 Who It Helps & How
 
-# Run contract tests
-npx hardhat test
+### Legal Professionals (Primary Productivity Impact)
+- Pre-litigation risk assessment and strategy testing
+- Faster case preparation with simulated outcomes
+- Habit of thorough, balanced analysis before committing resources
 
-# Deploy to Polygon Mumbai testnet
-npx hardhat run scripts/deploy.ts --network polygonMumbai
-```
+### Debate & Public Speaking Preparation
+- Practice arguments for presentations, negotiations, or competitions
+- See how opposing views might challenge your position
+- Build confidence through repeated, low-pressure rehearsal
 
-## 🎯 Use Cases
+### Workplace & Personal Decision-Making
+- Explore pros/cons of business decisions, policy proposals, or life choices
+- Train the habit of seeking counter-arguments before deciding
+- Improve critical thinking routines for everyday challenges
 
-### Law Firms & Attorneys
-- **Case Strategy Testing**: Try different legal approaches before real trials
-- **Client Education**: Show clients potential outcomes in an engaging way
-- **Team Training**: Practice arguments and evidence presentation
-- **Pre-Litigation Analysis**: Assess case strength and potential verdicts before filing
+### Students & Lifelong Learners
+- Understand structured reasoning and logical debate
+- Experiment with evidence and see how it shifts outcomes
+- Develop disciplined thinking habits early
 
-### Law Students
-- **Learning Tool**: Understand courtroom dynamics and legal reasoning
-- **Mock Trials**: Practice without the pressure of real cases
-- **Evidence Analysis**: Learn how different evidence affects case outcomes
-- **Legal Strategy Development**: Experiment with different argument approaches
+## 🌟 Why This Fits the Commit To Change Hackathon
 
-### Curious Minds
-- **Legal Education**: See how the justice system works in practice
-- **Debate Practice**: Test your argumentation skills
-- **Transparency**: Witness fair, unbiased legal proceedings
-- **AI Technology Exploration**: Experience cutting-edge AI in legal contexts
-
-### Blockchain Enthusiasts
-- **Smart Contract Interaction**: Experience real blockchain transactions
-- **Decentralized Applications**: Use a complete Web3 legal platform
-- **On-Chain Transparency**: Verify case records on the blockchain
-
-## 🔒 Security & Privacy
-
-- **Your Evidence**: Only you control access to your case files
-- **Blockchain Transparency**: Public verification without compromising privacy
-- **Secure Storage**: Encrypted evidence handling
-- **No Data Mining**: We don't sell or misuse your information
-
-## 🌟 What Makes RumbleCourt Special
-
-### 🤖 Advanced AI Architecture
-- **Multi-Agent System**: Three specialized AI agents (Prosecution, Defense, Judge) with distinct personalities and legal strategies
-- **Opik Observability**: Real-time LLM interaction tracing for optimization and debugging
-- **Smart Prompt Engineering**: Context-aware prompts that adapt based on case history and evidence
-- **Automatic Quality Scoring**: Built-in evaluation metrics for relevance, argument quality, and legal accuracy
-
-### ⚖️ Blockchain-Powered Transparency
-- **Immutable Case Records**: Every case filing, trial, and verdict permanently stored on-chain
-- **Transparent Verdicts**: Public blockchain ledger ensures fair and verifiable outcomes
-- **Case Lifecycle Management**: Complete tracking from filing through appeal process
-- **Decentralized Trust**: No central authority required for case validation
-
-### 🎮 Next-Generation User Experience
-- **Command Terminal Interface**: Intuitive text-based commands for case management
-- **Live Trial Simulation**: Real-time courtroom drama with animated interface
-- **Smart Case History**: Automatic organization with most recent and completed cases prioritized
-- **Quick Actions**: One-click commands for common legal tasks
-
-### Unlike Traditional Legal Software
-- **No Expensive Licenses**: Built on open, accessible technology
-- **AI-Powered Insights**: Dynamic analysis you can't get from static software
-- **Real-Time Interaction**: Watch arguments develop, don't just read reports
-- **Transparent Process**: See exactly how decisions are made
-
-### Built for the Future
-- **Web3 Ready**: Blockchain integration for next-generation transparency
-- **AI-First**: Designed around the capabilities of modern AI
-- **User-Centric**: Simple interface, powerful results
-- **Evolving**: Constantly improving with new AI capabilities
+- **Real resolution support**: Turns common goals like “decide better,” “prepare more effectively,” and “work smarter” into measurable daily habits
+- **Sophisticated multi-agent design**: Autonomous agents with distinct roles, tool use, and adaptive reasoning
+- **Outstanding Opik integration**: Comprehensive tracing, evaluation, and optimisation for reliable, improvable agent behaviour
+- **Broad yet practical utility**: Deployable tool with clear impact on thinking and productivity routines
 
 ## 🤝 Contributing
 
-We welcome contributors! Whether you're a developer, designer, legal expert, or just passionate about legal tech:
-
-1. Fork the repository
-2. Create your feature branch
-3. Submit a pull request
-
-See our [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## 📚 Documentation
-
-- [API Documentation](docs/api.md)
-- [Smart Contract Guide](docs/contracts.md)
-- [Development Setup](docs/development.md)
-
-## 🐛 Issues & Support
-
-Found a bug? Have a question? [Open an issue](https://github.com/Dapp-Mentors/rumblecourt/issues) or join our community discussions.
+Contributions very welcome! Fork, branch, and submit PRs — especially features that enhance debate versatility, habit tracking, or Opik insights.
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License
 
 ---
 
-**RumbleCourt**: Where AI meets justice, and everyone gets their day in court. ⚖️🤖
+**RumbleCourt**: Train your mind to see both sides, decide with clarity, and turn better thinking into a daily habit. ⚖️🤖🚀
