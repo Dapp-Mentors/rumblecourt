@@ -7,11 +7,11 @@ services:
       context: .
       dockerfile: Dockerfile.hardhat
     ports:
-      - "8545:8545"  # Expose for reverse proxy
+      - "8545:8545"
     volumes:
       - .:/app
       - /app/node_modules
-      - hardhat-artifacts:/app/artifacts  # Persist compiled contracts
+      - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
     working_dir: /app
     command: npm run node
@@ -22,11 +22,17 @@ services:
       - rumblecourt-network
     healthcheck:
       test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:8545 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 20s
     restart: unless-stopped
+    # Resource limits to prevent excessive CPU usage
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
   # Next.js Frontend Development Server
   nextjs-server:
@@ -42,18 +48,17 @@ services:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
     working_dir: /app
-    # Use a startup script that handles deployment
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
         
-        # Wait for hardhat to be fully accessible with proper JSON-RPC request
-        for i in 1 2 3 4 5 6 7 8 9 10; do
+        # Wait for hardhat with proper JSON-RPC test
+        for i in 1 2 3 4 5; do
           if wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://hardhat-node:8545 2>/dev/null | grep -q result; then
             echo 'Hardhat node is ready!'
             break
           fi
-          echo 'Waiting for hardhat... (attempt '$$i'/10)'
+          echo 'Waiting for hardhat... (attempt '$$i'/5)'
           sleep 3
         done &&
         
@@ -64,19 +69,29 @@ services:
         npm run deploy:local &&
         
         echo '=== Starting Next.js development server ===' &&
-        npm run dev
+        npm run dev -- --hostname 0.0.0.0
       "
     env_file:
       - .env.local
     environment:
       - NODE_ENV=development
       - RPC_URL=http://hardhat-node:8545
+      # CRITICAL: Disable telemetry to reduce CPU usage
+      - NEXT_TELEMETRY_DISABLED=1
+      # Set hostname for proper reverse proxy support
+      - HOSTNAME=0.0.0.0
     networks:
       - rumblecourt-network
     depends_on:
       hardhat-node:
         condition: service_healthy
     restart: unless-stopped
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
 
 networks:
   rumblecourt-network:

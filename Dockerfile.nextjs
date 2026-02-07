@@ -38,5 +38,11 @@ ENV NEXT_PUBLIC_ENVIRONMENT=local
 ENV DISABLE_METAMASK_ANALYTICS=true
 ENV DISABLE_METAMASK_TELEMETRY=true
 
+# CRITICAL: Disable Next.js telemetry to reduce restarts
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Set proper hostname for dev server to work with reverse proxy
+ENV HOSTNAME=0.0.0.0
+
 # Default command to start Next.js development server
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
