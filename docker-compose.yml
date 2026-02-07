@@ -34,7 +34,7 @@ services:
           cpus: '1.0'
           memory: 1G
 
-  # Next.js Frontend Development Server
+  # Next.js Frontend - Production Mode
   nextjs-server:
     build:
       context: .
@@ -42,17 +42,13 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-      - hardhat-artifacts:/app/artifacts
-      - hardhat-cache:/app/cache
+      - hardhat-artifacts:/app/artifacts:ro
+      - ./deployments:/app/deployments:ro
     working_dir: /app
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
         
-        # Wait for hardhat with proper JSON-RPC test
         for i in 1 2 3 4 5; do
           if wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://hardhat-node:8545 2>/dev/null | grep -q result; then
             echo 'Hardhat node is ready!'
@@ -68,17 +64,18 @@ services:
         echo '=== Deploying contracts ===' &&
         npm run deploy:local &&
         
-        echo '=== Starting Next.js development server ===' &&
-        npm run dev -- --hostname 0.0.0.0
+        echo '=== Building Next.js for production ===' &&
+        npm run build &&
+        
+        echo '=== Starting production server ===' &&
+        npm run start
       "
     env_file:
       - .env.local
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - RPC_URL=http://hardhat-node:8545
-      # CRITICAL: Disable telemetry to reduce CPU usage
       - NEXT_TELEMETRY_DISABLED=1
-      # Set hostname for proper reverse proxy support
       - HOSTNAME=0.0.0.0
     networks:
       - rumblecourt-network
@@ -86,7 +83,6 @@ services:
       hardhat-node:
         condition: service_healthy
     restart: unless-stopped
-    # Resource limits
     deploy:
       resources:
         limits:

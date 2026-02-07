@@ -1,4 +1,4 @@
-# Multi-stage build for Next.js development environment
+# Multi-stage build for Next.js
 FROM node:24-alpine AS base
 
 # Install build dependencies
@@ -15,13 +15,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
-
-# Development stage
-FROM base AS development
-
-# Install all dependencies including dev dependencies
-RUN npm ci && npm cache clean --force
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -29,20 +23,12 @@ COPY . .
 # Expose Next.js default port
 EXPOSE 3000
 
-# Set environment variables for development
-ENV NODE_ENV=development
-# Internal RPC URL for server-side calls (container-to-container)
-ENV RPC_URL=http://hardhat-node:8545
-# NEXT_PUBLIC_RPC_URL will be set via .env file to reverse proxy URL
-ENV NEXT_PUBLIC_ENVIRONMENT=local
-ENV DISABLE_METAMASK_ANALYTICS=true
-ENV DISABLE_METAMASK_TELEMETRY=true
-
-# CRITICAL: Disable Next.js telemetry to reduce restarts
+# Set environment variables
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Set proper hostname for dev server to work with reverse proxy
 ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-# Default command to start Next.js development server
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+# The actual build and start will happen in docker-compose command
+# This allows us to compile contracts first, then build Next.js
+CMD ["npm", "run", "start"]
