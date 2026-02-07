@@ -44,3 +44,7 @@ artifacts/
 !artifacts/contracts/**/*.json
 cache/
 typechain-types/
+
+# Explicitly include these files despite other patterns
+!.gitignore
+!services/blockchain.ts
