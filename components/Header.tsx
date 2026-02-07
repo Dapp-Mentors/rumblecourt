@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Scale, Menu, X, Gavel, BookOpen, Sparkles, Shield } from 'lucide-react';
+import { Scale, Menu, X, Gavel, Sparkles, Shield } from 'lucide-react';
 import { useWallet } from '../context/WalletContext';
 import { config } from '../lib/wagmi';
 import Link from 'next/link';
@@ -46,7 +46,6 @@ const Header = () => {
 
     const navLinks = [
         { label: 'Courtroom', href: '/courtroom', icon: Gavel },
-        { label: 'Case History', href: '/history', icon: BookOpen },
         { label: 'Documentation', href: '/docs', icon: Shield },
         { label: 'About', href: '/about', icon: Sparkles },
     ];

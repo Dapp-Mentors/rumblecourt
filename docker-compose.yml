@@ -27,7 +27,6 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
-    # Resource limits to prevent excessive CPU usage
     deploy:
       resources:
         limits:
@@ -42,8 +41,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - hardhat-artifacts:/app/artifacts:ro
-      - ./deployments:/app/deployments:ro
+      - hardhat-artifacts:/app/artifacts
+      - hardhat-cache:/app/cache
+      - ./deployments:/app/deployments
     working_dir: /app
     command: >
       sh -c "
