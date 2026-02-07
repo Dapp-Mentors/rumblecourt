@@ -39,6 +39,8 @@ const DEPLOYMENTS_PATH = path.join(
   'RumbleCourt.json'
 )
 
+const ENVIRONMENT = process.env.ENVIRONMENT || 'local'
+
 /* -------------------------------------------------------------------------- */
 /*                                   Script                                   */
 /* -------------------------------------------------------------------------- */
@@ -84,7 +86,10 @@ async function main(): Promise<void> {
     ) as DeploymentsFile
   }
 
-  deployments['contract'] = {
+  // Determine deployment key based on environment
+  const deploymentKey = ENVIRONMENT === 'local' ? 'local' : 'production'
+  
+  deployments[deploymentKey] = {
     network,
     deployedAt: new Date().toISOString(),
     deployer: deployer.address,

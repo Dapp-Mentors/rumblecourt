@@ -25,12 +25,18 @@ export interface Verdict {
 
 // Get contract address from deployment artifacts
 const getContractAddress = (): string => {
-  const address = deploymentArtifacts['contract']?.contractAddress
+  // Check environment to determine which deployment to use
+  const environment = process.env.NEXT_PUBLIC_ENVIRONMENT || 'local'
+  const deploymentKey = environment === 'local' ? 'local' : 'production'
+  
+  // Type-safe access to deployment artifacts
+  const deployment = deploymentArtifacts[deploymentKey as keyof typeof deploymentArtifacts]
+  const address = deployment?.contractAddress
 
   if (!address) {
-    console.error('Contract address not found in deployment artifacts!')
+    console.error(`Contract address not found in deployment artifacts for environment: ${environment}!`)
     throw new Error(
-      'Contract address is missing from deployment artifacts. Ensure artifacts/RumbleCourt.json contains a valid address under ["contract"]["contractAddress"].',
+      `Contract address is missing from deployment artifacts for environment '${environment}'. Ensure artifacts/RumbleCourt.json contains a valid address under ["${deploymentKey}"]["contractAddress"].`,
     )
   }
 

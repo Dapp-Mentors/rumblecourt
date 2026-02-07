@@ -14,8 +14,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:coverage": "hardhat test --coverage",
-    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy",
+    "deploy:local": "ENVIRONMENT=local hardhat run scripts/deploy.ts --network localhost",
+    "deploy:production": "ENVIRONMENT=production hardhat run scripts/deploy.ts --network polygonAmoy",
     "node": "hardhat node",
     "test:opik": "node scripts/test-opik.js"
   },
