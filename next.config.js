@@ -18,7 +18,11 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
 
-  // Configure webpack for better dev performance
+  // Empty turbopack config to silence the warning
+  // This tells Next.js we're aware Turbopack is being used
+  turbopack: {},
+
+  // Configure webpack for better dev performance (when webpack is used)
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {
       // Reduce watch polling for better performance
