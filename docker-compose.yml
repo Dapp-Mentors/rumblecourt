@@ -44,11 +44,11 @@ services:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
       - ./deployments:/app/deployments
+      - next-build:/app/.next   # ← New: persist the Next.js build
     working_dir: /app
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
-        
         for i in 1 2 3 4 5; do
           if wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://hardhat-node:8545 2>/dev/null | grep -q result; then
             echo 'Hardhat node is ready!'
@@ -57,16 +57,20 @@ services:
           echo 'Waiting for hardhat... (attempt '$$i'/5)'
           sleep 3
         done &&
-        
+
         echo '=== Compiling contracts ===' &&
         npm run compile &&
-        
+
         echo '=== Deploying contracts ===' &&
         npm run deploy:local &&
-        
-        echo '=== Building Next.js for production ===' &&
-        npm run build &&
-        
+
+        if [ ! -d '/app/.next' ]; then
+          echo '=== Building Next.js for production (first run) ===' &&
+          npm run build
+        else
+          echo '=== Skipping Next.js build — .next exists ==='
+        fi &&
+
         echo '=== Starting production server ===' &&
         npm run start
       "
@@ -97,4 +101,6 @@ volumes:
   hardhat-artifacts:
     driver: local
   hardhat-cache:
+    driver: local
+  next-build:          # ← New volume
     driver: local
