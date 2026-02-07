@@ -1,7 +1,7 @@
-require("@nomicfoundation/hardhat-ethers");
-require("@nomicfoundation/hardhat-verify");
-require("@nomicfoundation/hardhat-chai-matchers");
-require("@typechain/hardhat");
+require('@nomicfoundation/hardhat-ethers')
+require('@nomicfoundation/hardhat-verify')
+require('@nomicfoundation/hardhat-chai-matchers')
+require('@typechain/hardhat')
 
 /** @type import('hardhat/config').HardhatUserConfig */
 const config = {
@@ -18,8 +18,11 @@ const config = {
   networks: {
     localhost: {
       type: 'http',
-      url: 'http://127.0.0.1:8545',
+      // Use environment variable to support both local and Docker environments
+      url: process.env.RPC_URL || 'http://127.0.0.1:8545',
       chainId: 31337,
+      // Add timeout for better reliability in Docker
+      timeout: 60000,
     },
     polygonAmoy: {
       type: 'http',
@@ -32,6 +35,13 @@ const config = {
     outDir: 'typechain-types',
     target: 'ethers-v6',
   },
-};
+  // Add paths to ensure artifacts are in the right place
+  paths: {
+    sources: './contracts',
+    tests: './test',
+    cache: './cache',
+    artifacts: './artifacts',
+  },
+}
 
-module.exports = config;
+module.exports = config
