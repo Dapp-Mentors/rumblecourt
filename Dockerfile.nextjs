@@ -1,0 +1,40 @@
+# Multi-stage build for Next.js development environment
+FROM node:18-alpine AS base
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Development stage
+FROM base AS development
+
+# Install all dependencies including dev dependencies
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Expose Next.js default port
+EXPOSE 3000
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV NEXT_PUBLIC_RPC_URL=http://localhost:8545
+ENV NEXT_PUBLIC_ENVIRONMENT=local
+ENV DISABLE_METAMASK_ANALYTICS=true
+ENV DISABLE_METAMASK_TELEMETRY=true
+
+# Default command to start Next.js development server
+CMD ["npm", "run", "dev"]

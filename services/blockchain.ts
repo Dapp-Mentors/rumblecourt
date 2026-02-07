@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import rumbleCourtAbi from '../artifacts/contracts/RumbleCourt.sol/RumbleCourt.json'
-import deploymentArtifacts from '../artifacts/RumbleCourt.json'
+import deploymentArtifacts from '../deployments/RumbleCourt.json'
 
 // Type definitions
 export type CaseStatus = 'PENDING' | 'IN_TRIAL' | 'COMPLETED' | 'APPEALED'

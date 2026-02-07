@@ -1,0 +1,85 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  prepare_environment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure target directory exists on VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if [ ! -d "/dockerized/containers/rumblecourt" ]; then
+              mkdir -p /dockerized/containers/rumblecourt
+            else
+              rm -rf /dockerized/containers/rumblecourt/*
+            fi
+
+      - name: Copy files to VPS
+        uses: appleboy/scp-action@v0.1.6
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: './'
+          target: '/dockerized/containers/rumblecourt'
+
+      - name: Create .env file
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cat << EOF > /dockerized/containers/rumblecourt/.env
+            NEXT_PUBLIC_OPENROUTER_API_KEY=${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
+            NEXT_PUBLIC_OPIK_API_KEY=${{ secrets.NEXT_PUBLIC_OPIK_API_KEY }}
+            OPIK_PROJECT_NAME=${{ secrets.OPIK_PROJECT_NAME }}
+            NEXT_PUBLIC_RPC_URL=${{ secrets.NEXT_PUBLIC_RPC_URL }}
+            PRIVATE_KEY=${{ secrets.PRIVATE_KEY }}
+            DISABLE_METAMASK_ANALYTICS=${{ secrets.DISABLE_METAMASK_ANALYTICS }}
+            DISABLE_METAMASK_TELEMETRY=${{ secrets.DISABLE_METAMASK_TELEMETRY }}
+            NEXT_PUBLIC_LLM_MODEL=${{ secrets.NEXT_PUBLIC_LLM_MODEL }}
+            NEXT_PUBLIC_ENVIRONMENT=${{ secrets.NEXT_PUBLIC_ENVIRONMENT }}
+            EOF
+
+  deploy_with_compose:
+    needs: prepare_environment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy with Docker Compose
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /dockerized/containers/rumblecourt
+            docker compose down
+            docker compose up -d
+
+  clean_up_dangling_images:
+    needs: deploy_with_compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove dangling Docker images
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker image prune -af

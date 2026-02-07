@@ -17,7 +17,7 @@
     "deploy:local": "ENVIRONMENT=local hardhat run scripts/deploy.ts --network localhost",
     "deploy:production": "ENVIRONMENT=production hardhat run scripts/deploy.ts --network polygonAmoy",
     "node": "hardhat node",
-    "test:opik": "node scripts/test-opik.js"
+    "seed": "hardhat run scripts/seed.ts --network localhost"
   },
   "keywords": [],
   "author": "",

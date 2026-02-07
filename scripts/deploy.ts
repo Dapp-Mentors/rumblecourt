@@ -35,7 +35,7 @@ type DeploymentsFile = {
 const DEPLOYMENTS_PATH = path.join(
   __dirname,
   '..',
-  'artifacts',
+  'deployments',
   'RumbleCourt.json'
 )
 
