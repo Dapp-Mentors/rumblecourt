@@ -10,7 +10,6 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "prepare": "husky install",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:coverage": "hardhat test --coverage",
