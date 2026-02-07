@@ -1,5 +1,4 @@
 require("@nomicfoundation/hardhat-ethers");
-require("@nomicfoundation/hardhat-ignition-ethers");
 require("@nomicfoundation/hardhat-verify");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("@typechain/hardhat");
