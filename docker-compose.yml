@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Hardhat Local Blockchain Node
+  hardhat-node:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    ports:
+      - "8545:8545"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: npm run node
+    environment:
+      - NODE_ENV=development
+      - RPC_URL=http://localhost:8545
+    networks:
+      - rumblecourt-network
+    restart: unless-stopped
+
+  # Next.js Frontend Development Server
+  nextjs-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.nextjs
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: npm run dev
+    env_file:
+      - .env
+      - .env.local
+    networks:
+      - rumblecourt-network
+    depends_on:
+      - hardhat-node
+    restart: unless-stopped
+
+networks:
+  rumblecourt-network:
+    driver: bridge

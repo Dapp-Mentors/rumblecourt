@@ -271,7 +271,7 @@ export const rumbleCourtMcpTools = {
     }),
     execute: async ({ caseId }) => {
       const ownerCheck = requireOwner()
-      if (ownerCheck.error) return ownerCheck
+      if (ownerCheck.error) throw new Error(ownerCheck.error)
 
       try {
         const id = typeof caseId === 'bigint' ? caseId : BigInt(caseId)
@@ -283,7 +283,7 @@ export const rumbleCourtMcpTools = {
             'The trial has begun. AI lawyers will now debate this case off-chain, and a verdict will be recorded once complete.',
         })
       } catch (error) {
-        return formatError(error, 'Failed to start trial')
+        throw error // Re-throw error so it propagates to simulateTrial
       }
     },
   }),

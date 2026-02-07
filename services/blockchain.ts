@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import rumbleCourtAbi from '../artifacts/contracts/RumbleCourt.sol/RumbleCourt.json'
-import deploymentArtifacts from '../artifacts/RumbleCourt.json'
+import deploymentArtifacts from '../deployments/RumbleCourt.json'
 
 // Type definitions
 export type CaseStatus = 'PENDING' | 'IN_TRIAL' | 'COMPLETED' | 'APPEALED'
@@ -25,12 +25,18 @@ export interface Verdict {
 
 // Get contract address from deployment artifacts
 const getContractAddress = (): string => {
-  const address = deploymentArtifacts['contract']?.contractAddress
+  // Check environment to determine which deployment to use
+  const environment = process.env.NEXT_PUBLIC_ENVIRONMENT || 'local'
+  const deploymentKey = environment === 'local' ? 'local' : 'production'
+  
+  // Type-safe access to deployment artifacts
+  const deployment = deploymentArtifacts[deploymentKey as keyof typeof deploymentArtifacts]
+  const address = deployment?.contractAddress
 
   if (!address) {
-    console.error('Contract address not found in deployment artifacts!')
+    console.error(`Contract address not found in deployment artifacts for environment: ${environment}!`)
     throw new Error(
-      'Contract address is missing from deployment artifacts. Ensure artifacts/RumbleCourt.json contains a valid address under ["contract"]["contractAddress"].',
+      `Contract address is missing from deployment artifacts for environment '${environment}'. Ensure artifacts/RumbleCourt.json contains a valid address under ["${deploymentKey}"]["contractAddress"].`,
     )
   }
 
@@ -118,24 +124,49 @@ export const fileCase = async (
     const contract = await getContractWithSigner()
 
     // Debug contract instance
-    console.log('Contract instance:', contract)
-    console.log('Contract methods:', Object.keys(contract))
-    console.log('fileCase method:', typeof contract.fileCase, contract.fileCase)
+    console.log('[fileCase] Contract address:', await contract.getAddress())
+    console.log('[fileCase] Contract target:', contract.target)
+    console.log('[fileCase] Signer:', contract.runner)
 
-    if (!contract.fileCase) {
-      throw new Error('Contract does not have a fileCase method')
+    // Verify the contract has the fileCase method
+    if (typeof contract.fileCase !== 'function') {
+      console.error(
+        '[fileCase] Available contract methods:',
+        Object.keys(contract.interface.fragments),
+      )
+      throw new Error(
+        'Contract does not have a fileCase method. Check ABI configuration.',
+      )
     }
 
+    console.log('[fileCase] Calling fileCase with:', {
+      caseTitle,
+      evidenceHash,
+    })
+
+    // Call the contract method
     const tx = await contract.fileCase(caseTitle, evidenceHash)
 
     // Ensure tx is a proper TransactionResponse
     if (!tx || typeof tx.wait !== 'function') {
+      console.error('[fileCase] Invalid transaction response:', tx)
       throw new Error('Invalid transaction response from contract')
     }
 
-    await tx.wait()
+    console.log('[fileCase] Transaction sent:', tx.hash)
+
+    // Wait for confirmation
+    const receipt = await tx.wait()
+    console.log('[fileCase] Transaction confirmed:', receipt?.hash)
+
     return tx
   } catch (error) {
+    console.error('[fileCase] Error details:', {
+      error,
+      errorType: typeof error,
+      errorConstructor: error?.constructor?.name,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    })
     reportError(error)
     throw error
   }
@@ -231,6 +262,9 @@ export const startTrial = async (
 ): Promise<ethers.TransactionResponse> => {
   try {
     const contract = await getContractWithSigner()
+
+    console.log('[startTrial] Starting trial for case:', caseId.toString())
+
     const tx = await contract.startTrial(caseId)
 
     if (!tx || typeof tx.wait !== 'function') {
@@ -238,6 +272,8 @@ export const startTrial = async (
     }
 
     await tx.wait()
+    console.log('[startTrial] Transaction confirmed:', tx.hash)
+
     return tx
   } catch (error) {
     reportError(error)
@@ -256,6 +292,13 @@ export const recordVerdict = async (
 ): Promise<ethers.TransactionResponse> => {
   try {
     const contract = await getContractWithSigner()
+
+    console.log('[recordVerdict] Recording verdict:', {
+      caseId: caseId.toString(),
+      verdictType,
+      isFinal,
+    })
+
     const tx = await contract.recordVerdict(
       caseId,
       verdictType,
@@ -268,6 +311,8 @@ export const recordVerdict = async (
     }
 
     await tx.wait()
+    console.log('[recordVerdict] Transaction confirmed:', tx.hash)
+
     return tx
   } catch (error) {
     reportError(error)
@@ -318,6 +363,9 @@ export const appealCase = async (
 ): Promise<ethers.TransactionResponse> => {
   try {
     const contract = await getContractWithSigner()
+
+    console.log('[appealCase] Filing appeal for case:', caseId.toString())
+
     const tx = await contract.appealCase(caseId)
 
     if (!tx || typeof tx.wait !== 'function') {
@@ -325,6 +373,8 @@ export const appealCase = async (
     }
 
     await tx.wait()
+    console.log('[appealCase] Transaction confirmed:', tx.hash)
+
     return tx
   } catch (error) {
     reportError(error)
@@ -447,7 +497,7 @@ export const onCaseAppealed = async (
 // ============================================
 
 const formatCase = (caseData: unknown): Case => {
-  console.log('ðŸ” Formatting case, raw data:', caseData)
+  console.log('🔍 Formatting case, raw data:', caseData)
 
   // Define the shape of case data from contract
   interface RawCaseData {

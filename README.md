@@ -1,228 +1,137 @@
-# RumbleCourt: AI-Driven Courtroom Simulator
+# RumbleCourt: AI-Powered Debate & Courtroom Simulator for Smarter Decisions
 
-## Overview
+![RumbleCourt Interface](screenshots/Lawyers%20Argue%202.png)
 
-RumbleCourt is an AI-driven courtroom simulator where LLM agents act as opposing lawyers, fiercely debating user-submitted evidence in real-time trials. A neutral judge LLM delivers binding verdicts, while all proceedings and outcomes are immutably recorded on-chain for transparency, adjournment tracking, and future reference—empowering users to preview case outcomes before real-world litigation. This boosts legal professionals' productivity by simulating trials to save time/resources and improve decision-making habits.
+**Built for the Commit To Change AI Agents Hackathon (Productivity & Work Habits Category)**  
+*Helping professionals and everyday users turn their 2026 resolution to "think clearer, decide better, and work more efficiently" into lasting habits through structured, multi-perspective reasoning.*
 
-## Categories
-- **Primary:** Legal Technology
-- **Secondary:** AI Simulation
+## 🎯 What is RumbleCourt?
 
-## Core Features
+RumbleCourt is an AI agent-powered simulator that stages real-time debates between opposing viewpoints on any submitted topic or evidence, culminating in a reasoned verdict from a neutral AI judge.
 
-### AI Agent Litigation
-- LLM-powered opposing lawyers for dynamic courtroom debates
-- Real-time evidence analysis and argumentation
-- Neutral judge agent for impartial verdict delivery
+While deeply valuable for legal professionals simulating courtroom scenarios, it’s designed for **everyone**:
+- Test arguments and strategies risk-free
+- Observe both sides of any issue in structured debate
+- Get an unbiased synthesis and likely outcome
+- Build sharper thinking and decision-making habits
 
-### Blockchain Transparency
-- On-chain recording of all trial proceedings and outcomes
-- Immutable evidence storage and adjournment tracking
-- Decentralized case history for future reference
+Think of it as a **personal reasoning accelerator** — whether preparing for a legal case, a workplace debate, a public speech, or just exploring a tough personal decision.
 
-### Pre-Litigation Simulation
-- Preview potential case outcomes before real-world litigation
-- Risk assessment and strategy optimization
-- Productivity enhancement for legal professionals
+## 🚀 Why RumbleCourt Boosts Productivity & Work Habits
 
-### Real-Time Trials
-- Live courtroom simulations with user-submitted evidence
-- Interactive debate sessions between AI lawyers
-- Binding verdicts delivered by impartial AI judge
+Many people set New Year’s resolutions to:
+- Make faster, more confident decisions
+- Reduce time wasted on unbalanced thinking
+- Build disciplined routines for preparation and analysis
+- Improve focus and output in high-stakes situations
 
-## Tech Stack
+RumbleCourt turns those intentions into sustainable habits by:
 
-- **Frontend/Backend:** Next.js 16 + TypeScript
-- **LLM:** OpenAI GPT-4o or OpenRouter models
-- **Blockchain:** EVM (Polygon testnet), Solidity 0.8.19, Hardhat, ethers.js/wagmi
-- **Evaluator:** Opik SDK
-- **APIs:** Moralis/Alchemy (blockchain data), CoinGecko/CoinMarketCap (market data)
-- **Styling:** Tailwind CSS
+- **Accelerating preparation time** — Run full debate cycles in minutes instead of hours of solo brainstorming or research
+- **Reducing decision paralysis** — Quickly surface strengths, weaknesses, and likely outcomes from both sides
+- **Training balanced reasoning** — Regular use reinforces the habit of considering opposing views before acting
+- **Fitting into daily workflows** — Short, focused simulations make structured thinking a repeatable routine rather than an occasional effort
 
-## Project Structure
+The outcome: higher-quality work, fewer missteps, and consistent professional (or personal) momentum all year long.
 
-```
-rumbleCourt/
-├── app/
-│   ├── api/
-│   │   ├── chat/          # LLM interaction endpoints
-│   │   ├── wallet/        # Blockchain integration
-│   │   └── opik/          # Evaluation and tracing
-│   ├── components/        # React components
-│   │   ├── ChatInterface.tsx
-│   │   ├── WalletConnect.tsx
-│   │   └── CourtroomSimulation.tsx
-│   ├── lib/               # Configurations
-│   │   ├── wagmi.ts       # Wallet integration
-│   │   ├── opik.ts        # Evaluation setup
-│   │   └── llm.ts         # AI agent chains
-│   └── utils/             # API utilities
-│       ├── moralis.ts     # Blockchain data APIs
-│       └── coingecko.ts   # Market data APIs
-├── contracts/             # Smart contracts
-│   └── CourtRecord.sol
-├── scripts/               # Deployment scripts
-│   └── deploy.ts
-├── test/                  # Test files
-│   └── CourtRecord.test.ts
-├── hardhat.config.ts      # Hardhat configuration
-├── .env.local.example     # Environment variables template
-└── README.md
-```
+## 🎪 How It Works
 
-## Getting Started
+1. **Connect Wallet** – Securely link MetaMask or WalletConnect (for on-chain recording)
+2. **Submit Your Topic/Case** – Enter details and evidence via the intuitive command terminal
+3. **AI Agents Debate** – Specialised LLM agents take opposing sides and argue dynamically in real-time
+4. **Neutral Judge Decides** – An unbiased AI judge analyses everything and delivers a reasoned verdict
+5. **Immutable Record** – Full proceedings and outcome permanently stored on Polygon for reference and transparency
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Copy `.env.local.example` to `.env.local` and fill in API keys
-4. Start development server: `npm run dev`
-5. For smart contracts: `npx hardhat compile`
+## ✨ Key Features
 
-## User Flow
+### 🤖 Autonomous Multi-Agent Reasoning System
+- Three specialised agents: two advocates with opposing stances + one neutral judge
+- Real-time adaptive arguments that respond to your evidence and prompts
+- Advanced prompt engineering for depth, fairness, and logical rigor
 
-1. User submits case evidence and details
-2. AI lawyers engage in real-time debate
-3. Neutral judge delivers binding verdict
-4. All proceedings recorded immutably on-chain
-5. Users can review case history and outcomes
+### ⚖️ Transparent & Structured Outcomes
+- Judge focused purely on logic, evidence, and balance
+- Immutable blockchain record of every exchange and verdict
+- Verifiable proceedings without exposing sensitive details
 
-## Hackathon Alignment
+### 📈 Habit-Building Workflow
+- Rapid iteration: test multiple angles or evidence sets in one session
+- Case/debate history dashboard with easy revisit and comparison
+- Simple one-click commands for starting, adding evidence, or requesting verdict
 
-- Built during Jan 13 - Feb 2026 hackathon period
-- Demonstrates advanced LLM agent capabilities with reasoning chains
-- Deep Opik integration for observability and evaluation
-- Focus on innovative legal technology solutions
-- Functional demo with real-world impact potential
+### 🔍 Built-in Observability with Opik
+- Full tracing of agent reasoning chains and performance
+- Automated metrics for argument quality, coherence, and balance
+- Insights to refine prompts and improve simulation reliability over time
 
-## Prerequisites
+![Judge Verdict 1](screenshots/Judge%20Verdict%201.png)
 
-- Node.js 18+
-- npm or yarn
-- MetaMask or WalletConnect-compatible wallet
-- API keys for:
-  - OpenAI/OpenRouter (LLM services)
-  - Moralis/Alchemy (blockchain data)
-  - CoinGecko/CoinMarketCap (market data)
+## 🛠 Tech Stack (Hackathon Highlights)
 
-## Installation
+- **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
+- **AI Agents**: OpenRouter (Agentic Trinity model) with sophisticated reasoning chains
+- **Observability & Evaluation**: Deep Opik SDK integration for tracing and optimisation
+- **Blockchain**: Polygon Amoy testnet + Solidity contracts for immutable records
+- **Wallet Integration**: wagmi + WalletConnect/MetaMask
+- **Real-time Interface**: Live terminal feed with animated courtroom visuals
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Dapp-Mentors/rumblecourt.git
-   cd rumbleCourt
-   ```
+## 🚀 Quick Start
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### For Everyone (No Coding Needed)
+1. Visit the live demo
+2. Connect your wallet (optional for public simulations)
+3. Use the command terminal to submit a topic and evidence
+4. Watch the debate unfold and review the judge’s verdict — in minutes!
 
-3. Set up environment variables:
-   ```bash
-   cp .env.local.example .env.local
-   # Edit .env.local with your API keys
-   ```
-
-## Configuration
-
-### Environment Variables
-
-Create a `.env.local` file with the following variables:
-
-```env
-# LLM Configuration
-OPENAI_API_KEY=your_openai_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-
-# Blockchain Data APIs
-MORALIS_API_KEY=your_moralis_api_key
-ALCHEMY_API_KEY=your_alchemy_api_key
-
-# Market Data APIs
-COINGECKO_API_KEY=your_coingecko_api_key
-CMC_API_KEY=your_coinmarketcap_api_key
-
-# Blockchain Configuration
-POLYGON_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/your_api_key
-```
-
-## Usage
-
-### Development
-
-Start the development server:
+### For Developers
 ```bash
+git clone https://github.com/Dapp-Mentors/rumblecourt.git
+cd rumblecourt
+npm install
+
+cp .env.local.example .env.local
+# Add your OpenRouter key and Polygon RPC URL
+
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+## 🎯 Who It Helps & How
 
-### Smart Contract Development
+### Legal Professionals (Primary Productivity Impact)
+- Pre-litigation risk assessment and strategy testing
+- Faster case preparation with simulated outcomes
+- Habit of thorough, balanced analysis before committing resources
 
-Compile contracts:
-```bash
-npx hardhat compile
-```
+### Debate & Public Speaking Preparation
+- Practice arguments for presentations, negotiations, or competitions
+- See how opposing views might challenge your position
+- Build confidence through repeated, low-pressure rehearsal
 
-Run tests:
-```bash
-npx hardhat test
-```
+### Workplace & Personal Decision-Making
+- Explore pros/cons of business decisions, policy proposals, or life choices
+- Train the habit of seeking counter-arguments before deciding
+- Improve critical thinking routines for everyday challenges
 
-Deploy to testnet:
-```bash
-npx hardhat run scripts/deploy.ts --network polygonMumbai
-```
+### Students & Lifelong Learners
+- Understand structured reasoning and logical debate
+- Experiment with evidence and see how it shifts outcomes
+- Develop disciplined thinking habits early
 
-### Code Quality
+## 🌟 Why This Fits the Commit To Change Hackathon
 
-Run linter:
-```bash
-npm run lint
-```
+- **Real resolution support**: Turns common goals like “decide better,” “prepare more effectively,” and “work smarter” into measurable daily habits
+- **Sophisticated multi-agent design**: Autonomous agents with distinct roles, tool use, and adaptive reasoning
+- **Outstanding Opik integration**: Comprehensive tracing, evaluation, and optimisation for reliable, improvable agent behaviour
+- **Broad yet practical utility**: Deployable tool with clear impact on thinking and productivity routines
 
-Fix linting issues:
-```bash
-npm run lint:fix
-```
+## 🤝 Contributing
 
-## Testing
+Contributions very welcome! Fork, branch, and submit PRs — especially features that enhance debate versatility, habit tracking, or Opik insights.
 
-Run the test suite:
-```bash
-npm test
-```
+## 📄 License
 
-For smart contracts:
-```bash
-npx hardhat test
-```
+MIT License
 
-## Deployment
+---
 
-### Frontend Deployment
-
-Build for production:
-```bash
-npm run build
-npm start
-```
-
-### Smart Contract Deployment
-
-Deploy to Polygon mainnet:
-```bash
-npx hardhat run scripts/deploy.ts --network polygon
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'feat: add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## License
-
-MIT
+**RumbleCourt**: Train your mind to see both sides, decide with clarity, and turn better thinking into a daily habit. ⚖️🤖🚀

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Terminal, Loader2, Gavel, Brain } from 'lucide-react';
+import { Send, Terminal, Loader2, Gavel, Brain, XCircle } from 'lucide-react';
 import { useCourtroom } from '../context/CourtroomContext';
 import { useWallet } from '../context/WalletContext';
 import TerminalMessage from './TerminalMessage';
@@ -11,6 +11,8 @@ const CourtroomSimulation: React.FC = () => {
     processCommand,
     isSimulating,
     simulateTrial,
+    simulationProgress,
+    abortSimulation,
     currentCase,
     cases
   } = useCourtroom();
@@ -99,6 +101,11 @@ const CourtroomSimulation: React.FC = () => {
     await simulateTrial(currentCase.caseTitle, currentCase.evidenceHash);
   };
 
+  const handleAbortSimulation = (): void => {
+    // Immediately abort without confirmation to prevent race conditions
+    abortSimulation();
+  };
+
   return (
     // LAYOUT FIX: h-full ensures it fits the parent container from page.tsx
     // flex-col allows us to separate Header, Messages (flex-1), and Input
@@ -112,9 +119,9 @@ const CourtroomSimulation: React.FC = () => {
             <h2 className="text-xl font-bold text-white">Command Terminal</h2>
           </div>
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isProcessing ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+            <div className={`w-3 h-3 rounded-full ${isProcessing || isSimulating ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
             <span className="text-sm text-slate-400">
-              {isProcessing ? 'Processing...' : 'Ready'}
+              {isProcessing || isSimulating ? 'Processing...' : 'Ready'}
             </span>
           </div>
         </div>
@@ -133,7 +140,7 @@ const CourtroomSimulation: React.FC = () => {
           <TerminalMessage key={message.id} message={message} />
         ))}
 
-        {isProcessing && (
+        {isProcessing && !isSimulating && (
           <div className="flex gap-4 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800 border-2 border-purple-500/50">
@@ -160,12 +167,41 @@ const CourtroomSimulation: React.FC = () => {
       {/* 3. Fixed Controls Area (Simulation status + Inputs) */}
       <div className="flex-shrink-0 bg-slate-900/80 backdrop-blur-md">
 
-        {/* Simulation Banner */}
+        {/* Simulation Progress Banner */}
         {isSimulating && (
-          <div className="px-6 py-2 border-t border-slate-700/50 bg-purple-900/20">
-            <div className="flex items-center gap-3 text-slate-300">
-              <Brain className="w-4 h-4 text-purple-400 animate-pulse" />
-              <span className="text-sm font-medium">AI Courtroom Simulation in Progress...</span>
+          <div className="px-6 py-3 border-t border-slate-700/50 bg-gradient-to-r from-purple-900/30 to-pink-900/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 flex-1">
+                <Brain className="w-5 h-5 text-purple-400 animate-pulse flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-white mb-1">
+                    AI Courtroom Simulation in Progress
+                  </div>
+                  <div className="text-xs text-slate-300 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>{simulationProgress || 'Processing...'}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleAbortSimulation}
+                className="
+                  flex items-center gap-2 px-3 py-2
+                  bg-red-500/20 hover:bg-red-500/30
+                  border border-red-500/50 hover:border-red-500
+                  rounded-lg text-red-300 hover:text-red-200
+                  transition-all text-sm font-medium
+                  flex-shrink-0 ml-4
+                "
+              >
+                <XCircle className="w-4 h-4" />
+                Cancel
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mt-2 w-full bg-slate-700/30 rounded-full h-1.5 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse" style={{ width: '100%' }} />
             </div>
           </div>
         )}

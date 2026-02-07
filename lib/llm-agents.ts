@@ -1,4 +1,6 @@
-// LLM Agent Profiles with distinct personalities
+// lib/llm-agents.ts
+// Enhanced with Opik tracing for LLM interaction logging
+
 export interface AgentProfile {
   role: 'prosecution' | 'defense' | 'judge'
   name: string
@@ -11,13 +13,13 @@ export interface AgentProfile {
 export const AGENT_PROFILES: Record<string, AgentProfile> = {
   prosecution: {
     role: 'prosecution',
-    name: 'Prosecution Lawyer',
+    name: 'Alexandra Chen',
     personality:
       'Aggressive, logical, detail-oriented. Focused on proving guilt beyond reasonable doubt. Confident in evidence presentation.',
     tone: 'Formal, authoritative, persuasive. Uses legal terminology appropriately but accessible.',
     style:
       'Structured arguments with clear evidence citations. Direct and confrontational when necessary.',
-    systemPrompt: `You are Prosecutor AI, a highly skilled legal expert specializing in criminal and civil prosecution. Your role is to present a compelling case against the defendant based on the evidence provided.
+    systemPrompt: `You are Alexandra Chen, a highly skilled legal expert specializing in criminal and civil prosecution. Your role is to present a compelling case against the defendant based on the evidence provided.
 
 **CRITICAL CONSTRAINT: Keep ALL responses under 150 words. Be direct and focused.**
 
@@ -47,19 +49,20 @@ Legal approach:
 - Focus on 2-3 key arguments maximum
 - Use bullet points when listing evidence
 - Avoid repetition and lengthy explanations
+- Always introduce yourself as "Alexandra Chen" when stating your name for the record
 
 Always maintain professionalism and respect for the court. Your goal is to secure a guilty verdict based on the evidence presented.`,
   },
 
   defense: {
     role: 'defense',
-    name: 'Defense Lawyer',
+    name: 'Marcus Rodriguez',
     personality:
       'Strategic, empathetic, creative. Focused on creating reasonable doubt. Skilled at cross-examination and alternative interpretations.',
     tone: 'Calm, composed, persuasive. Uses storytelling to humanize the client.',
     style:
       'Narrative-driven arguments. Focuses on context and alternative perspectives.',
-    systemPrompt: `You are Defense Attorney AI, an expert defense lawyer known for creative strategy and client advocacy. Your role is to defend the client against the charges and create reasonable doubt in the minds of the jury.
+    systemPrompt: `You are Marcus Rodriguez, an expert defense lawyer known for creative strategy and client advocacy. Your role is to defend the client against the charges and create reasonable doubt in the minds of the jury.
 
 **CRITICAL CONSTRAINT: Keep ALL responses under 150 words. Be direct and focused.**
 
@@ -90,18 +93,19 @@ Legal approach:
 - Focus on 2-3 key counterarguments maximum
 - Use bullet points when listing defenses
 - Avoid repetition and lengthy explanations
+- Always introduce yourself as "Marcus Rodriguez" when stating your name for the record
 
 Always maintain professionalism and respect for the court. Your goal is to secure a not guilty verdict or the best possible outcome for your client.`,
   },
 
   judge: {
     role: 'judge',
-    name: 'AI Judge',
+    name: 'Judge Sarah Williams',
     personality:
       'Impartial, wise, analytical. Focused on fairness and legal correctness. Meticulous in weighing evidence.',
     tone: 'Formal, judicial, impartial. Uses precise legal language.',
     style: 'Deliberative and thoughtful. Explains legal reasoning clearly.',
-    systemPrompt: `You are Judge AI, an impartial and experienced judicial officer. Your role is to preside over the trial, evaluate evidence, and deliver a fair and legally sound verdict.
+    systemPrompt: `You are Judge Sarah Williams, an impartial and experienced judicial officer. Your role is to preside over the trial, evaluate evidence, and deliver a fair and legally sound verdict.
 
 **CRITICAL CONSTRAINT: Keep responses concise - Opening/Deliberation: 150 words max, Verdict: 200 words max, Closing: 100 words max.**
 
@@ -133,6 +137,7 @@ Legal approach:
 - Closing: Maximum 100 words
 - Focus on essential legal points only
 - Use clear, structured language
+- Sign your rulings as "Judge Sarah Williams"
 
 Always maintain impartiality and respect for both sides. Your goal is to reach a just verdict based solely on the evidence and applicable law.`,
   },
@@ -243,19 +248,19 @@ ${historyContext}Please respond appropriately to continue the legal proceeding.`
   return caseContext
 }
 
-// Simple mock LLM call for development/testing (will connect to real LLM in production)
+// Simple mock LLM call for development/testing
 export const simulateAgentResponse = async (
   agent: 'prosecution' | 'defense' | 'judge',
 ): Promise<string> => {
-  // Simulate network delay
   await new Promise((resolve) =>
     setTimeout(resolve, 1500 + Math.random() * 2000),
   )
 
-  // Mock responses based on agent personality and prompt context
+  const agentName = AGENT_PROFILES[agent].name
+
   if (agent === 'prosecution') {
     const responses = [
-      `Your Honor, the evidence clearly shows a pattern of behavior that violates the terms of the agreement. The digital records from ${new Date().toLocaleDateString()} demonstrate intentional disregard for contractual obligations.`,
+      `Your Honor, ${agentName} for the prosecution. The evidence clearly shows a pattern of behavior that violates the terms of the agreement. The digital records from ${new Date().toLocaleDateString()} demonstrate intentional disregard for contractual obligations.`,
       `We have witness testimony and documentary evidence that establish guilt beyond reasonable doubt. The defendant's actions were deliberate and caused significant harm.`,
       `The defense's arguments lack credibility. Their interpretation of the contract is inconsistent with industry standards and legal precedents.`,
       `The burden of proof has been met. The prosecution rests its case.`,
@@ -265,7 +270,7 @@ export const simulateAgentResponse = async (
 
   if (agent === 'defense') {
     const responses = [
-      `Your Honor, the prosecution's evidence is circumstantial and misinterpreted. Our client acted in good faith based on the information available at the time.`,
+      `Your Honor, ${agentName} for the defense. The prosecution's evidence is circumstantial and misinterpreted. Our client acted in good faith based on the information available at the time.`,
       `The contract language is ambiguous, and our client's actions were a reasonable interpretation of the terms. We ask the court to consider the context.`,
       `The prosecution has failed to establish intent. There is no evidence of malicious intent or intentional breach of contract.`,
       `We believe the evidence presented creates reasonable doubt. The defense rests.`,
@@ -286,19 +291,45 @@ export const simulateAgentResponse = async (
   return 'I need to review the evidence before making a ruling.'
 }
 
-// Real LLM integration function (using OpenRouter API)
+/**
+ * Enhanced LLM call with integrated Opik logging
+ * Logs are sent asynchronously without blocking the response
+ */
 export const callLLMAgent = async (
   agent: 'prosecution' | 'defense' | 'judge',
   prompt: string,
   systemPrompt?: string,
+  tracer?: {
+    logLLMInteraction: (
+      agent: 'prosecution' | 'defense' | 'judge',
+      phase: string,
+      prompt: string,
+      response: string,
+      metadata?: Record<string, unknown>,
+    ) => void
+  },
+  phase?: string,
 ): Promise<string> => {
   const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
 
-  // Fallback to simulation if API key not configured
   if (!apiKey) {
-    console.warn('OpenRouter API key not configured, using simulation')
-    return simulateAgentResponse(agent)
+    console.warn(
+      '[LLM] ⚠️  OpenRouter API key not configured, using simulation',
+    )
+    const response = await simulateAgentResponse(agent)
+
+    // Log simulated response too
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, response, {
+        simulated: true,
+        model: 'simulation',
+      })
+    }
+
+    return response
   }
+
+  const startTime = Date.now()
 
   try {
     const response = await fetch(
@@ -313,7 +344,7 @@ export const callLLMAgent = async (
           'X-Title': 'RumbleCourt AI',
         },
         body: JSON.stringify({
-          model: 'arcee-ai/trinity-large-preview:free',
+          model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
           messages: [
             {
               role: 'system',
@@ -324,7 +355,7 @@ export const callLLMAgent = async (
               content: prompt,
             },
           ],
-          max_tokens: 400, // Reduced from 500 to enforce brevity
+          max_tokens: 400,
           temperature: agent === 'judge' ? 0.3 : 0.7,
         }),
       },
@@ -336,18 +367,39 @@ export const callLLMAgent = async (
       throw new Error(data.error?.message || 'API error')
     }
 
-    return (
-      data.choices[0].message.content?.trim() ||
-      'I need to review the evidence before responding.'
-    )
+    const llmResponse =
+      data.choices[0].message.content?.trim() || 'No response.'
+    const endTime = Date.now()
+
+    // Log the interaction asynchronously (fire-and-forget)
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, llmResponse, {
+        model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
+        temperature: agent === 'judge' ? 0.3 : 0.7,
+        max_tokens: 400,
+        latency_ms: endTime - startTime,
+        success: true,
+      })
+    }
+
+    return llmResponse
   } catch (error) {
-    console.error('LLM call failed:', error)
-    // Fallback to simulation on error
-    return simulateAgentResponse(agent)
+    console.error('[LLM] ❌ LLM call failed:', error)
+    const fallbackResponse = await simulateAgentResponse(agent)
+
+    // Log the error and fallback
+    if (tracer && phase) {
+      tracer.logLLMInteraction(agent, phase, prompt, fallbackResponse, {
+        error: (error as Error).message,
+        fallback: true,
+        model: 'simulation',
+      })
+    }
+
+    return fallbackResponse
   }
 }
 
-// Helper function to format conversation history for LLM context
 export const formatDebateHistory = (
   turns: Array<{ agent: string; message: string }>,
 ) => {
@@ -359,7 +411,6 @@ export const formatDebateHistory = (
     .join('\n')
 }
 
-// Function to determine next speaker in the debate
 export const getNextSpeaker = (
   currentTurn: number,
   debateStructure: DebateTurn[],
@@ -367,5 +418,5 @@ export const getNextSpeaker = (
   if (currentTurn < debateStructure.length) {
     return debateStructure[currentTurn].agent
   }
-  return 'judge' // Default to judge for final verdict
+  return 'judge'
 }

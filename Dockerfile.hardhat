@@ -1,0 +1,37 @@
+# Multi-stage build for Hardhat development environment
+FROM node:18-alpine AS base
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Development stage
+FROM base AS development
+
+# Install all dependencies including dev dependencies
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Expose Hardhat default port
+EXPOSE 8545
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV RPC_URL=http://localhost:8545
+
+# Default command to start Hardhat node
+CMD ["npm", "run", "node"]

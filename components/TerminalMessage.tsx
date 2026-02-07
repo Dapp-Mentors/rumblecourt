@@ -85,7 +85,7 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
   };
 
   return (
-    <div className={`flex gap-4 p-4 rounded-lg border ${getRoleColor(message.role)} transition-all duration-300`}>
+    <div className={`flex gap-4 p-4 rounded-lg border ${getRoleColor(message.role)} transition-all duration-300 max-w-7xl`}>
       <div className="shrink-0">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-slate-800 border-2 ${getBorderColor(message.role)}`}>
           {getRoleIcon(message.role)}
@@ -93,14 +93,14 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="font-semibold text-white">{getRoleName(message.role)}</span>
-          <span className="text-xs text-slate-500" suppressHydrationWarning={true}>
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className="font-semibold text-white truncate max-w-[200px]">{getRoleName(message.role)}</span>
+          <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0" suppressHydrationWarning={true}>
             {message.timestampString}
           </span>
         </div>
 
-        <div className="text-slate-300 leading-relaxed prose prose-invert prose-sm max-w-none">
+        <div className="text-slate-300 leading-relaxed prose prose-invert prose-sm max-w-none break-words overflow-hidden">
           <ReactMarkdown
             components={{
               // Headings
@@ -149,13 +149,13 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
                 const isInline = !className;
                 if (isInline) {
                   return (
-                    <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700">
+                    <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700 break-all overflow-wrap-anywhere">
                       {children}
                     </code>
                   );
                 }
                 return (
-                  <code className="block p-4 rounded-lg bg-slate-900 text-cyan-300 font-mono text-sm overflow-x-auto border border-slate-700 my-3">
+                  <code className="block p-4 rounded-lg bg-slate-900 text-cyan-300 font-mono text-sm overflow-x-auto border border-slate-700 my-3 whitespace-pre-wrap break-all">
                     {children}
                   </code>
                 );
@@ -172,7 +172,7 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
               a: ({ href, children }) => (
                 <a
                   href={href}
-                  className="text-cyan-400 hover:text-cyan-300 underline decoration-cyan-500/50 hover:decoration-cyan-400 transition-colors"
+                  className="text-cyan-400 hover:text-cyan-300 underline decoration-cyan-500/50 hover:decoration-cyan-400 transition-colors break-all overflow-wrap-anywhere"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -231,10 +231,10 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
         {message.evidence && (
           <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
             <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-slate-300">{message.evidence.description}</span>
+              <FileText className="w-4 h-4 text-purple-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-slate-300 truncate">{message.evidence.description}</span>
             </div>
-            <p className="text-sm text-slate-400">{message.evidence.content}</p>
+            <p className="text-sm text-slate-400 break-words overflow-hidden">{message.evidence.content}</p>
           </div>
         )}
       </div>

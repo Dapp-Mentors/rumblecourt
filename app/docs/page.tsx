@@ -168,7 +168,7 @@ export default function DocsPage(): React.ReactNode {
     try {
       const cases = await getUserCases(userAddress);
       setUserCases(cases);
-      setSuccess(`Found ${cases.length} cases for user`);
+      setSuccess(`Found ${cases.length} cases for user (sorted by status: COMPLETED first, then most recent)`);
     } catch (err) {
       handleError(err);
     } finally {
@@ -660,6 +660,7 @@ export default function DocsPage(): React.ReactNode {
                               <option value={2}>Settlement</option>
                               <option value={3}>Dismissed</option>
                             </select>
+                            <p className="text-xs text-slate-400 mt-1">Note: When recording a final verdict, the case status automatically changes to COMPLETED</p>
                           </div>
 
                           <div>
@@ -774,7 +775,7 @@ export default function DocsPage(): React.ReactNode {
 
                           <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                             <p className="text-sm text-blue-300">
-                              <strong>Note:</strong> Only the plaintiff who filed the case can appeal. The case must be COMPLETED with a final verdict.
+                              <strong>Note:</strong> Only the plaintiff who filed the case can appeal. The case must be COMPLETED with a final verdict. After appeal, the case status becomes APPEALED.
                             </p>
                           </div>
 
