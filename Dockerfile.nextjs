@@ -1,5 +1,5 @@
 # Multi-stage build for Next.js development environment
-FROM node:24-alpine AS base
+FROM node:20-alpine AS base
 
 # Install build dependencies
 RUN apk add --no-cache \
