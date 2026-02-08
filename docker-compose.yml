@@ -33,22 +33,28 @@ services:
           cpus: '1.0'
           memory: 1G
 
-  # Next.js Frontend - Production Mode (Pre-built)
+  # Next.js Frontend - Production Mode (Pre-built with env vars)
   nextjs-server:
     build:
       context: .
       dockerfile: Dockerfile.nextjs
       args:
-        - NODE_ENV=production
+        # Pass NEXT_PUBLIC_* vars as build args so they're embedded in the build
+        - NEXT_PUBLIC_OPENROUTER_API_KEY=${NEXT_PUBLIC_OPENROUTER_API_KEY}
+        - NEXT_PUBLIC_OPIK_API_KEY=${NEXT_PUBLIC_OPIK_API_KEY}
+        - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL}
+        - NEXT_PUBLIC_LLM_MODEL=${NEXT_PUBLIC_LLM_MODEL}
+        - NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT}
     ports:
       - "3000:3000"
     volumes:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
       - ./deployments:/app/deployments
+      # Mount .env.local if it exists (for runtime env vars)
+      - ./.env.local:/app/.env.local:ro
     working_dir: /app
-    # SIMPLIFIED COMMAND - No building! App is pre-built in Dockerfile
-    # Only deploy contracts and start the server
+    # SIMPLIFIED COMMAND - App is pre-built, just deploy contracts and start
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
@@ -60,6 +66,13 @@ services:
           echo 'Waiting for hardhat... (attempt '$i'/10)'
           sleep 3
         done &&
+
+        echo '=== Checking environment ===' &&
+        if [ -f .env.local ]; then
+          echo '✓ .env.local is mounted'
+        else
+          echo '⚠ .env.local not found'
+        fi &&
 
         echo '=== Compiling contracts ===' &&
         npm run compile &&
@@ -77,8 +90,6 @@ services:
       - RPC_URL=http://hardhat-node:8545
       - NEXT_TELEMETRY_DISABLED=1
       - HOSTNAME=0.0.0.0
-      # Memory for contract operations (not building - that's done already)
-      - NODE_OPTIONS=--max-old-space-size=1024
     networks:
       - rumblecourt-network
     depends_on:
@@ -95,7 +106,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
 
 networks:
   rumblecourt-network:

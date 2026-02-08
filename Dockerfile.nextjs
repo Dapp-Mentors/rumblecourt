@@ -1,6 +1,4 @@
-# Single-stage build for Next.js - Simpler and more reliable
-# Use this if the multi-stage build has issues
-
+# Single-stage build for Next.js with proper env handling
 FROM node:24-alpine
 
 # Install all necessary dependencies
@@ -29,11 +27,24 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Pre-compile contracts (optional, will run again at startup)
+# Build args for NEXT_PUBLIC_* variables (passed during docker build)
+ARG NEXT_PUBLIC_OPENROUTER_API_KEY
+ARG NEXT_PUBLIC_OPIK_API_KEY
+ARG NEXT_PUBLIC_RPC_URL
+ARG NEXT_PUBLIC_LLM_MODEL
+ARG NEXT_PUBLIC_ENVIRONMENT
+
+# Set them as env vars for the build
+ENV NEXT_PUBLIC_OPENROUTER_API_KEY=$NEXT_PUBLIC_OPENROUTER_API_KEY
+ENV NEXT_PUBLIC_OPIK_API_KEY=$NEXT_PUBLIC_OPIK_API_KEY
+ENV NEXT_PUBLIC_RPC_URL=$NEXT_PUBLIC_RPC_URL
+ENV NEXT_PUBLIC_LLM_MODEL=$NEXT_PUBLIC_LLM_MODEL
+ENV NEXT_PUBLIC_ENVIRONMENT=$NEXT_PUBLIC_ENVIRONMENT
+
+# Pre-compile contracts
 RUN npm run compile || echo "Will compile at runtime"
 
-# BUILD NEXT.JS HERE - This is the key difference
-# Building during image creation instead of at runtime
+# BUILD NEXT.JS HERE with the environment variables
 RUN npm run build
 
 # Verify build completed
@@ -46,6 +57,20 @@ RUN mkdir -p /app/deployments
 
 EXPOSE 3000
 
-# Simplified startup - just deploy contracts and start
-# No build step needed since we already built above
-CMD ["sh", "-c", "echo '=== Pre-built app starting ===' && npm run compile && npm run deploy:local && echo '=== Starting Next.js ===' && npm run start"]
+# At runtime, .env.local will be present and override/supplement these values
+# Just deploy contracts and start the pre-built app
+CMD ["sh", "-c", "\
+    echo '=== Checking for .env.local ===' && \
+    if [ -f .env.local ]; then \
+        echo '✓ .env.local found' && \
+        cat .env.local; \
+    else \
+        echo '⚠ .env.local not found (using build-time env vars)'; \
+    fi && \
+    echo '=== Compiling contracts ===' && \
+    npm run compile && \
+    echo '=== Deploying contracts ===' && \
+    npm run deploy:local && \
+    echo '=== Starting pre-built Next.js server ===' && \
+    npm run start \
+"]
