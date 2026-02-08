@@ -43,7 +43,6 @@ artifacts/
 !artifacts/contracts/
 !artifacts/contracts/**/*.json
 cache/
-typechain-types/
 
 # Explicitly include these files despite other patterns
 !.gitignore

@@ -70,7 +70,6 @@ jspm_packages/
 # Hardhat artifacts and cache
 artifacts/
 cache/
-typechain-types/
 
 # OS generated files
 .DS_Store
