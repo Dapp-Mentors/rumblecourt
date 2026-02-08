@@ -44,7 +44,6 @@ services:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
       - ./deployments:/app/deployments
-      # ← Removed next-build volume entirely
     working_dir: /app
     command: >
       sh -c "
@@ -65,7 +64,7 @@ services:
         npm run deploy:local &&
 
         echo '=== Building Next.js for production ===' &&
-        npm run build &&  # ← Always build (clean every time)
+        timeout --kill-after=10s 180s npm run build &&
 
         echo '=== Starting production server ===' &&
         npm run start
@@ -77,6 +76,8 @@ services:
       - RPC_URL=http://hardhat-node:8545
       - NEXT_TELEMETRY_DISABLED=1
       - HOSTNAME=0.0.0.0
+      # Increase Node.js memory for build
+      - NODE_OPTIONS=--max-old-space-size=2048
     networks:
       - rumblecourt-network
     depends_on:
