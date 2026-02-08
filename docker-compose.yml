@@ -53,7 +53,7 @@ services:
             echo 'Hardhat node is ready!'
             break
           fi
-          echo 'Waiting for hardhat... (attempt '$$i'/5)'
+          echo 'Waiting for hardhat... (attempt '$i'/5)'
           sleep 3
         done &&
 
@@ -64,7 +64,7 @@ services:
         npm run deploy:local &&
 
         echo '=== Building Next.js for production ===' &&
-        timeout --kill-after=10s 180s npm run build &&
+        timeout -k 10 180 npm run build &&
 
         echo '=== Starting production server ===' &&
         npm run start
