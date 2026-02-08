@@ -149,13 +149,13 @@ const TerminalMessage: React.FC<TerminalMessageProps> = ({ message }) => {
                 const isInline = !className;
                 if (isInline) {
                   return (
-                    <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700 break-all overflow-wrap-anywhere">
+                    <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700 break-words whitespace-normal inline-block max-w-full">
                       {children}
                     </code>
                   );
                 }
                 return (
-                  <code className="block p-4 rounded-lg bg-slate-900 text-cyan-300 font-mono text-sm overflow-x-auto border border-slate-700 my-3 whitespace-pre-wrap break-all">
+                  <code className="block p-4 rounded-lg bg-slate-900 text-cyan-300 font-mono text-sm overflow-x-auto border border-slate-700 my-3 whitespace-pre-wrap break-words">
                     {children}
                   </code>
                 );

@@ -141,7 +141,7 @@ const CourtroomSimulation: React.FC = () => {
         ))}
 
         {isProcessing && !isSimulating && (
-          <div className="flex gap-4 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
+          <div className="flex gap-4 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5 max-w-7xl">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800 border-2 border-purple-500/50">
                 <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
