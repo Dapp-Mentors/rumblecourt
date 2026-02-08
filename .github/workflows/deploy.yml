@@ -15,13 +15,16 @@ jobs:
       - name: Create deployment archive
         run: |
           # Create a compressed archive of the project
+          # Use --warning=no-file-changed to ignore files changing during archive
           tar -czf rumblecourt.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.next' \
             --exclude='cache' \
             --exclude='artifacts' \
-            .
+            --warning=no-file-changed \
+            --warning=no-file-removed \
+            . || [[ $? -eq 1 ]]
 
           echo "Archive created: $(ls -lh rumblecourt.tar.gz)"
 
@@ -212,12 +215,19 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /dockerized/containers/rumblecourt
+            cd /dockerized/containers/rumblecourt 2>/dev/null || exit 0
 
             echo "=== DEPLOYMENT FAILED ==="
-            echo "Last 100 lines of logs:"
-            docker compose logs --tail=100
 
-            echo ""
-            echo "Service status:"
-            docker compose ps
+            if [ -f docker-compose.yml ]; then
+              echo "Last 100 lines of logs:"
+              docker compose logs --tail=100
+              
+              echo ""
+              echo "Service status:"
+              docker compose ps
+            else
+              echo "Docker compose file not found - deployment files may not have been transferred"
+              echo "Contents of deployment directory:"
+              ls -la
+            fi
