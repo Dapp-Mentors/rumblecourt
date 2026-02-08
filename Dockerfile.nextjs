@@ -1,14 +1,14 @@
-# Multi-stage build for Next.js
-FROM node:24-alpine AS base
+# Multi-stage build for Next.js - Optimized for production
+FROM node:24-alpine AS deps
 
 # Install build dependencies
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    git
+    git \
+    wget
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
@@ -17,18 +17,77 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --legacy-peer-deps && npm cache clean --force
 
+# ============================================
+# Builder stage - Build Next.js here
+# ============================================
+FROM node:24-alpine AS builder
+
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
 # Copy source code
 COPY . .
 
-# Expose Next.js default port
-EXPOSE 3000
+# Set build environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Set environment variables
+# Pre-compile contracts (artifacts needed for Next.js build)
+RUN npm run compile || echo "Contract compilation will happen at runtime"
+
+# Build Next.js application HERE (during image creation)
+# This eliminates the need to build during container startup
+RUN npm run build
+
+# ============================================
+# Runner stage - Slim production image
+# ============================================
+FROM node:24-alpine AS runner
+
+RUN apk add --no-cache \
+    wget \
+    curl
+
+WORKDIR /app
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# The actual build and start will happen in docker-compose command
-# This allows us to compile contracts first, then build Next.js
-CMD ["npm", "run", "start"]
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy necessary files from builder
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy contract-related files for runtime contract deployment
+COPY --from=builder /app/hardhat.config.js ./
+COPY --from=builder /app/contracts ./contracts
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/artifacts ./artifacts
+COPY --from=builder /app/cache ./cache
+
+# Create deployments directory
+RUN mkdir -p /app/deployments && chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+# Simplified startup script - no building needed!
+# Just deploy contracts and start the pre-built app
+CMD ["sh", "-c", "echo '=== App already built, deploying contracts ===' && npm run compile && npm run deploy:local && echo '=== Starting production server ===' && node server.js"]
