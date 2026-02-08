@@ -1,93 +1,51 @@
-# Multi-stage build for Next.js - Optimized for production
-FROM node:24-alpine AS deps
+# Single-stage build for Next.js - Simpler and more reliable
+# Use this if the multi-stage build has issues
 
-# Install build dependencies
+FROM node:24-alpine
+
+# Install all necessary dependencies
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
     git \
-    wget
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --legacy-peer-deps && npm cache clean --force
-
-# ============================================
-# Builder stage - Build Next.js here
-# ============================================
-FROM node:24-alpine AS builder
-
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    git
-
-WORKDIR /app
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source code
-COPY . .
-
-# Set build environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Pre-compile contracts (artifacts needed for Next.js build)
-RUN npm run compile || echo "Contract compilation will happen at runtime"
-
-# Build Next.js application HERE (during image creation)
-# This eliminates the need to build during container startup
-RUN npm run build
-
-# ============================================
-# Runner stage - Slim production image
-# ============================================
-FROM node:24-alpine AS runner
-
-RUN apk add --no-cache \
     wget \
     curl
 
 WORKDIR /app
 
+# Copy package files first (for better caching)
+COPY package*.json ./
+
+# Install all dependencies
+RUN npm ci --legacy-peer-deps && npm cache clean --force
+
+# Copy ALL source files
+COPY . .
+
+# Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Pre-compile contracts (optional, will run again at startup)
+RUN npm run compile || echo "Will compile at runtime"
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+# BUILD NEXT.JS HERE - This is the key difference
+# Building during image creation instead of at runtime
+RUN npm run build
 
-# Copy contract-related files for runtime contract deployment
-COPY --from=builder /app/hardhat.config.js ./
-COPY --from=builder /app/contracts ./contracts
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/artifacts ./artifacts
-COPY --from=builder /app/cache ./cache
+# Verify build completed
+RUN ls -la /app/.next && \
+    echo "✓ .next directory exists" || \
+    (echo "✗ .next directory missing!" && exit 1)
 
 # Create deployments directory
-RUN mkdir -p /app/deployments && chown -R nextjs:nodejs /app
-
-USER nextjs
+RUN mkdir -p /app/deployments
 
 EXPOSE 3000
 
-# Simplified startup script - no building needed!
-# Just deploy contracts and start the pre-built app
-CMD ["sh", "-c", "echo '=== App already built, deploying contracts ===' && npm run compile && npm run deploy:local && echo '=== Starting production server ===' && node server.js"]
+# Simplified startup - just deploy contracts and start
+# No build step needed since we already built above
+CMD ["sh", "-c", "echo '=== Pre-built app starting ===' && npm run compile && npm run deploy:local && echo '=== Starting Next.js ===' && npm run start"]
