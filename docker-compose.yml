@@ -33,46 +33,29 @@ services:
           cpus: '1.0'
           memory: 1G
 
-  # Next.js Frontend - Production Mode (Pre-built with env vars)
+  # Next.js Frontend - Production Mode
   nextjs-server:
     build:
       context: .
       dockerfile: Dockerfile.nextjs
-      args:
-        # Pass NEXT_PUBLIC_* vars as build args so they're embedded in the build
-        - NEXT_PUBLIC_OPENROUTER_API_KEY=${NEXT_PUBLIC_OPENROUTER_API_KEY}
-        - NEXT_PUBLIC_OPIK_API_KEY=${NEXT_PUBLIC_OPIK_API_KEY}
-        - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL}
-        - NEXT_PUBLIC_LLM_MODEL=${NEXT_PUBLIC_LLM_MODEL}
-        - NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT}
     ports:
       - "3000:3000"
     volumes:
       - hardhat-artifacts:/app/artifacts
       - hardhat-cache:/app/cache
       - ./deployments:/app/deployments
-      # Mount .env.local if it exists (for runtime env vars)
-      - ./.env.local:/app/.env.local:ro
     working_dir: /app
-    # SIMPLIFIED COMMAND - App is pre-built, just deploy contracts and start
     command: >
       sh -c "
         echo '=== Waiting for Hardhat node to be ready ===' &&
-        for i in 1 2 3 4 5 6 7 8 9 10; do
+        for i in 1 2 3 4 5; do
           if wget -q -O- --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' http://hardhat-node:8545 2>/dev/null | grep -q result; then
-            echo '✓ Hardhat node is ready!'
+            echo 'Hardhat node is ready!'
             break
           fi
-          echo 'Waiting for hardhat... (attempt '$i'/10)'
+          echo 'Waiting for hardhat... (attempt '$i'/5)'
           sleep 3
         done &&
-
-        echo '=== Checking environment ===' &&
-        if [ -f .env.local ]; then
-          echo '✓ .env.local is mounted'
-        else
-          echo '⚠ .env.local not found'
-        fi &&
 
         echo '=== Compiling contracts ===' &&
         npm run compile &&
@@ -80,7 +63,10 @@ services:
         echo '=== Deploying contracts ===' &&
         npm run deploy:local &&
 
-        echo '=== Starting pre-built Next.js server ===' &&
+        echo '=== Building Next.js for production ===' &&
+        timeout -k 10 180 npm run build &&
+
+        echo '=== Starting production server ===' &&
         npm run start
       "
     env_file:
@@ -90,6 +76,8 @@ services:
       - RPC_URL=http://hardhat-node:8545
       - NEXT_TELEMETRY_DISABLED=1
       - HOSTNAME=0.0.0.0
+      # Increase Node.js memory for build
+      - NODE_OPTIONS=--max-old-space-size=2048
     networks:
       - rumblecourt-network
     depends_on:
@@ -101,12 +89,6 @@ services:
         limits:
           cpus: '2.0'
           memory: 2G
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health", "||", "exit", "1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 networks:
   rumblecourt-network:

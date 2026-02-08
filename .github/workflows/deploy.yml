@@ -1,4 +1,4 @@
-name: Deploy to VPS (Zero Downtime)
+name: Deploy to VPS
 
 on:
   push:
@@ -15,6 +15,7 @@ jobs:
       - name: Create deployment archive
         run: |
           # Create a compressed archive of the project
+          # Use --warning=no-file-changed to ignore files changing during archive
           tar -czf rumblecourt.tar.gz \
             --exclude='.git' \
             --exclude='node_modules' \
@@ -27,11 +28,26 @@ jobs:
 
           echo "Archive created: $(ls -lh rumblecourt.tar.gz)"
 
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Create directory if it doesn't exist
+            mkdir -p /dockerized/containers/rumblecourt
+
+            # Stop existing containers gracefully
+            cd /dockerized/containers/rumblecourt 2>/dev/null && docker compose down || true
+
       - name: Transfer archive to VPS
         run: |
+          # Save SSH key to file
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
+          # Use scp with specific options for better reliability
           scp -i /tmp/deploy_key \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
@@ -41,30 +57,36 @@ jobs:
             rumblecourt.tar.gz \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/
 
+          # Clean up key
           rm -f /tmp/deploy_key
 
-      - name: Extract files on VPS
+      - name: Extract and setup on VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p /dockerized/containers/rumblecourt
+            # Remove old deployment
             rm -rf /dockerized/containers/rumblecourt/*
+
+            # Extract the archive
             cd /dockerized/containers/rumblecourt
             tar -xzf /tmp/rumblecourt.tar.gz
-            rm -f /tmp/rumblecourt.tar.gz
-            echo "✓ Files extracted successfully"
 
-      - name: Create environment file (BEFORE BUILDING)
+            # Clean up the temp archive
+            rm -f /tmp/rumblecourt.tar.gz
+
+            echo "Files deployed successfully"
+            ls -la
+
+      - name: Create environment file
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Create .env.local BEFORE building so Docker can use it
             cat << 'EOF' > /dockerized/containers/rumblecourt/.env.local
             # LLM API Keys
             NEXT_PUBLIC_OPENROUTER_API_KEY=${{ secrets.NEXT_PUBLIC_OPENROUTER_API_KEY }}
@@ -72,10 +94,15 @@ jobs:
             OPIK_PROJECT_NAME=${{ secrets.OPIK_PROJECT_NAME }}
 
             # Blockchain Configuration
+            # Server-side RPC (container-to-container)
             RPC_URL=http://hardhat-node:8545
+
+            # Client-side RPC (browser/MetaMask - public URL)
             NEXT_PUBLIC_RPC_URL=${{ secrets.NEXT_PUBLIC_RPC_URL }}
 
             # Deployment account
+            # Using Hardhat's first default account for local development
+            # Change this in production!
             PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
             # MetaMask Configuration
@@ -89,11 +116,7 @@ jobs:
             NEXT_PUBLIC_ENVIRONMENT=${{ secrets.NEXT_PUBLIC_ENVIRONMENT }}
             EOF
 
-            echo "✓ Environment file created"
-            echo "Contents:"
-            cat /dockerized/containers/rumblecourt/.env.local
-
-      - name: Build Docker images (while current app runs)
+      - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -103,39 +126,20 @@ jobs:
           script: |
             cd /dockerized/containers/rumblecourt
 
-            echo "=== Building new Docker images with environment variables ==="
-            echo "Current app is still running and serving traffic..."
-            echo ""
-            
-            # Build with .env.local present so build args can read from it
-            # The --env-file flag makes variables available during build
-            docker compose --env-file .env.local build --no-cache
+            # Pull latest images and build
+            docker compose build --no-cache
 
-            echo ""
-            echo "✓ New images built successfully with embedded environment variables"
-            echo "✓ Current app is still running"
+            # Start services in detached mode
+            docker compose up -d
 
-      - name: Deploy with zero-downtime restart
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /dockerized/containers/rumblecourt
+            # Wait for services to initialize
+            echo "Waiting for services to start..."
+            sleep 15
 
-            echo "=== Performing rolling restart ==="
-            
-            # Recreate containers with new images and .env.local mounted
-            docker compose --env-file .env.local up -d --force-recreate --no-build
-
-            echo ""
-            echo "Waiting for services to initialize..."
-            sleep 20
-
-            echo ""
-            echo "=== Service Status ==="
+            # Check service status
             docker compose ps
+
+            echo "Deployment initiated. Check logs with: docker compose logs -f"
 
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.0
@@ -146,20 +150,11 @@ jobs:
           script: |
             cd /dockerized/containers/rumblecourt
 
+            # Wait a bit more for deployment to complete
             sleep 30
 
             echo "=== Service Status ==="
             docker compose ps
-
-            echo ""
-            echo "=== Checking Environment in Container ==="
-            if docker compose exec -T nextjs-server sh -c '[ -f .env.local ]'; then
-              echo "✓ .env.local is present in container"
-              docker compose exec -T nextjs-server sh -c 'head -5 .env.local'
-            else
-              echo "✗ .env.local is NOT in container"
-              exit 1
-            fi
 
             echo ""
             echo "=== Checking Hardhat Node ==="
@@ -167,49 +162,35 @@ jobs:
               echo "✓ Hardhat node is accessible"
             else
               echo "✗ Hardhat node is not accessible"
-              docker compose logs --tail=50 hardhat-node
+              docker compose logs hardhat-node
               exit 1
             fi
 
             echo ""
             echo "=== Checking Contract Deployment ==="
+            # Check if deployment was successful
             if docker compose logs nextjs-server | grep -q "deployed to"; then
               echo "✓ Contracts deployed successfully"
               docker compose logs nextjs-server | grep "deployed to"
             else
-              echo "⚠ Contract deployment status unclear"
-              docker compose logs --tail=100 nextjs-server
+              echo "⚠ Contract deployment status unclear, check logs:"
+              docker compose logs nextjs-server | tail -50
             fi
 
             echo ""
             echo "=== Checking Next.js Server ==="
             if docker compose ps | grep -q "nextjs-server.*Up"; then
               echo "✓ Next.js server is running"
-              
-              sleep 5
-              if docker compose exec -T nextjs-server wget -q -O- http://localhost:3000 2>/dev/null | head -c 100; then
-                echo ""
-                echo "✓ Next.js server is responding to requests"
-              else
-                echo "⚠ Next.js server may not be fully ready yet"
-              fi
             else
               echo "✗ Next.js server is not running"
-              docker compose logs --tail=100 nextjs-server
+              docker compose logs nextjs-server
               exit 1
             fi
 
             echo ""
             echo "=== Deployment Summary ==="
-            echo "✓ Zero-downtime deployment completed successfully"
-            echo ""
             echo "Application URL: https://rumble.dappmentors.org"
             echo "RPC Endpoint: https://hardhat.dappmentors.org"
-            echo ""
-            echo "Build configuration:"
-            echo "  - Next.js: Pre-built with environment variables"
-            echo "  - .env.local: Mounted at runtime"
-            echo "  - Startup time: ~30-40 seconds"
             echo ""
             echo "To view logs: docker compose logs -f"
 
@@ -221,14 +202,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "=== Cleaning up old Docker images ==="
+            # Remove dangling images
             docker image prune -af --filter "until=24h"
-            
-            echo ""
-            echo "Docker disk usage:"
-            docker system df
-            echo ""
-            echo "✓ Cleanup completed"
+
+            echo "Cleanup completed"
 
       - name: Notify on failure
         if: failure()
@@ -241,20 +218,16 @@ jobs:
             cd /dockerized/containers/rumblecourt 2>/dev/null || exit 0
 
             echo "=== DEPLOYMENT FAILED ==="
-            echo ""
 
             if [ -f docker-compose.yml ]; then
+              echo "Last 100 lines of logs:"
+              docker compose logs --tail=100
+              
+              echo ""
               echo "Service status:"
               docker compose ps
-              
-              echo ""
-              echo "=== Hardhat Node Logs ==="
-              docker compose logs --tail=50 hardhat-node
-              
-              echo ""
-              echo "=== Next.js Server Logs ==="
-              docker compose logs --tail=100 nextjs-server
             else
-              echo "Docker compose file not found"
+              echo "Docker compose file not found - deployment files may not have been transferred"
+              echo "Contents of deployment directory:"
               ls -la
             fi

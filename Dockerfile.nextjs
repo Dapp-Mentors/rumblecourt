@@ -1,25 +1,27 @@
-# Single-stage build for Next.js with proper env handling
-FROM node:24-alpine
+# Multi-stage build for Next.js
+FROM node:24-alpine AS base
 
-# Install all necessary dependencies
+# Install build dependencies
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    git \
-    wget \
-    curl
+    git
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files first (for better caching)
+# Copy package files
 COPY package*.json ./
 
-# Install all dependencies
+# Install dependencies
 RUN npm ci --legacy-peer-deps && npm cache clean --force
 
-# Copy ALL source files
+# Copy source code
 COPY . .
+
+# Expose Next.js default port
+EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -27,50 +29,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Build args for NEXT_PUBLIC_* variables (passed during docker build)
-ARG NEXT_PUBLIC_OPENROUTER_API_KEY
-ARG NEXT_PUBLIC_OPIK_API_KEY
-ARG NEXT_PUBLIC_RPC_URL
-ARG NEXT_PUBLIC_LLM_MODEL
-ARG NEXT_PUBLIC_ENVIRONMENT
-
-# Set them as env vars for the build
-ENV NEXT_PUBLIC_OPENROUTER_API_KEY=$NEXT_PUBLIC_OPENROUTER_API_KEY
-ENV NEXT_PUBLIC_OPIK_API_KEY=$NEXT_PUBLIC_OPIK_API_KEY
-ENV NEXT_PUBLIC_RPC_URL=$NEXT_PUBLIC_RPC_URL
-ENV NEXT_PUBLIC_LLM_MODEL=$NEXT_PUBLIC_LLM_MODEL
-ENV NEXT_PUBLIC_ENVIRONMENT=$NEXT_PUBLIC_ENVIRONMENT
-
-# Pre-compile contracts
-RUN npm run compile || echo "Will compile at runtime"
-
-# BUILD NEXT.JS HERE with the environment variables
-RUN npm run build
-
-# Verify build completed
-RUN ls -la /app/.next && \
-    echo "✓ .next directory exists" || \
-    (echo "✗ .next directory missing!" && exit 1)
-
-# Create deployments directory
-RUN mkdir -p /app/deployments
-
-EXPOSE 3000
-
-# At runtime, .env.local will be present and override/supplement these values
-# Just deploy contracts and start the pre-built app
-CMD ["sh", "-c", "\
-    echo '=== Checking for .env.local ===' && \
-    if [ -f .env.local ]; then \
-        echo '✓ .env.local found' && \
-        cat .env.local; \
-    else \
-        echo '⚠ .env.local not found (using build-time env vars)'; \
-    fi && \
-    echo '=== Compiling contracts ===' && \
-    npm run compile && \
-    echo '=== Deploying contracts ===' && \
-    npm run deploy:local && \
-    echo '=== Starting pre-built Next.js server ===' && \
-    npm run start \
-"]
+# The actual build and start will happen in docker-compose command
+# This allows us to compile contracts first, then build Next.js
+CMD ["npm", "run", "start"]
