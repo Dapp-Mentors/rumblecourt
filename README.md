@@ -95,6 +95,13 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
+### MetaMask Configuration
+When adding the network to MetaMask:
+- **Network Name**: Rumble Court Local
+- **RPC URL**: https://hardhat.dappmentors.org (Public URL) or http://127.0.0.1:8545 (Local URL)
+- **Chain ID**: 31337
+- **Currency Symbol**: ETH
+
 ## 🎯 Who It Helps & How
 
 ### Legal Professionals (Primary Productivity Impact)
