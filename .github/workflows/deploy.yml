@@ -12,7 +12,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Prepare VPS directory
+      - name: Create deployment archive
+        run: |
+          # Create a compressed archive of the project
+          tar -czf rumblecourt.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='cache' \
+            --exclude='artifacts' \
+            .
+
+          echo "Archive created: $(ls -lh rumblecourt.tar.gz)"
+
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -25,15 +38,44 @@ jobs:
             # Stop existing containers gracefully
             cd /dockerized/containers/rumblecourt 2>/dev/null && docker compose down || true
 
-      - name: Copy application files
-        uses: appleboy/scp-action@v0.1.6
+      - name: Transfer archive to VPS
+        run: |
+          # Save SSH key to file
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+
+          # Use scp with specific options for better reliability
+          scp -i /tmp/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3 \
+            -o Compression=yes \
+            rumblecourt.tar.gz \
+            ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/tmp/
+
+          # Clean up key
+          rm -f /tmp/deploy_key
+
+      - name: Extract and setup on VPS
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: './'
-          target: '/dockerized/containers/rumblecourt'
-          rm: true # Remove target directory before copying
+          script: |
+            # Remove old deployment
+            rm -rf /dockerized/containers/rumblecourt/*
+
+            # Extract the archive
+            cd /dockerized/containers/rumblecourt
+            tar -xzf /tmp/rumblecourt.tar.gz
+
+            # Clean up the temp archive
+            rm -f /tmp/rumblecourt.tar.gz
+
+            echo "Files deployed successfully"
+            ls -la
 
       - name: Create environment file
         uses: appleboy/ssh-action@v1.0.0
@@ -77,7 +119,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 10m
+          command_timeout: 20m
           script: |
             cd /dockerized/containers/rumblecourt
 
@@ -159,9 +201,6 @@ jobs:
           script: |
             # Remove dangling images
             docker image prune -af --filter "until=24h"
-
-            # Remove unused volumes (be careful with this in production)
-            # docker volume prune -f
 
             echo "Cleanup completed"
 
