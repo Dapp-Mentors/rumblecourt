@@ -1,9 +1,0 @@
-{
-  "local": {
-    "network": "localhost",
-    "deployedAt": "2026-02-07T10:21:10.221Z",
-    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "contractAddress": "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
-    "transactionHash": "0x418417ae4c910cc04d9a2155ee6890f2ffbbae369ad7eca39d80b71294845413"
-  }
-}

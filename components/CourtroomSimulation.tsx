@@ -23,45 +23,35 @@ const CourtroomSimulation: React.FC = () => {
   // Refs for scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  // Ref to track if user has intentionally scrolled up
   const isUserScrolledUp = useRef(false);
 
-  // --- SCROLL LOGIC FIX ---
-
-  // 1. Detect Scroll Position
+  // Detect Scroll Position
   const handleScroll = () => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    // Calculate distance from bottom
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-    // If user is more than 50px from bottom, they have scrolled up
     isUserScrolledUp.current = distanceFromBottom > 50;
   };
 
-  // 2. Auto-scroll Effect
+  // Auto-scroll Effect
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // Only auto-scroll if the user hasn't manually scrolled up to read history
     if (!isUserScrolledUp.current) {
       container.scrollTo({
         top: container.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [messages, isProcessing]); // Run when messages change or processing starts/stops
-
-
-  // --- HANDLERS ---
+  }, [messages, isProcessing]);
 
   const handleSubmit = (): void => {
     if (!inputValue.trim() || isProcessing) return;
 
-    // Force scroll to bottom when user sends a message
     isUserScrolledUp.current = false;
 
     processCommand(inputValue);
@@ -76,42 +66,32 @@ const CourtroomSimulation: React.FC = () => {
   };
 
   const handleSimulate = async (): Promise<void> => {
-    // Check if there are any cases
     if (cases.length === 0) {
-      // This will be caught by the simulateTrial function, but we can provide immediate UI feedback
       await simulateTrial('', '');
       return;
     }
 
-    // Check if a case is selected
     if (!currentCase) {
-      // This will be caught by the simulateTrial function
       await simulateTrial('', '');
       return;
     }
 
-    // Check if case is already completed
     if (currentCase.status === 'COMPLETED') {
-      // This will be caught by the simulateTrial function
       await simulateTrial(currentCase.caseTitle, currentCase.evidenceHash);
       return;
     }
 
-    // All checks passed, proceed with simulation
     await simulateTrial(currentCase.caseTitle, currentCase.evidenceHash);
   };
 
   const handleAbortSimulation = (): void => {
-    // Immediately abort without confirmation to prevent race conditions
     abortSimulation();
   };
 
   return (
-    // LAYOUT FIX: h-full ensures it fits the parent container from page.tsx
-    // flex-col allows us to separate Header, Messages (flex-1), and Input
     <div className="flex flex-col h-full bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden shadow-xl">
 
-      {/* 1. Fixed Header */}
+      {/* Fixed Header */}
       <div className="px-6 py-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900/50 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -127,10 +107,7 @@ const CourtroomSimulation: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Scrollable Message Area */}
-      {/* flex-1: takes available space */}
-      {/* min-h-0: allows shrinking for scroll */}
-      {/* overflow-y-auto: enables the scrollbar */}
+      {/* Scrollable Message Area */}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -160,11 +137,10 @@ const CourtroomSimulation: React.FC = () => {
           </div>
         )}
 
-        {/* Invisible element to target scroll bottom */}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. Fixed Controls Area (Simulation status + Inputs) */}
+      {/* Fixed Controls Area */}
       <div className="flex-shrink-0 bg-slate-900/80 backdrop-blur-md">
 
         {/* Simulation Progress Banner */}
@@ -199,7 +175,6 @@ const CourtroomSimulation: React.FC = () => {
               </button>
             </div>
 
-            {/* Progress bar */}
             <div className="mt-2 w-full bg-slate-700/30 rounded-full h-1.5 overflow-hidden">
               <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse" style={{ width: '100%' }} />
             </div>
@@ -267,7 +242,7 @@ const CourtroomSimulation: React.FC = () => {
           </div>
 
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-            <span>Powered by AI Agents</span>
+            <span>Powered by AI Agents (Demo)</span>
             <span>{messages.length} messages</span>
           </div>
         </div>

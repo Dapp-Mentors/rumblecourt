@@ -16,8 +16,14 @@ type Particle = {
 export default function Home(): React.ReactNode {
   const [isHovering, setIsHovering] = useState<number | null>(null);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const router = useRouter();
   const { isConnected } = useWallet();
+
+  // Prevent hydration mismatch by deferring rendering until client is hydrated
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   React.useEffect(() => {
     const generateRandomParticle = (): Particle => ({
@@ -142,30 +148,43 @@ export default function Home(): React.ReactNode {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
-
-
-                {isConnected ? (
-                  <button
-                    className="
-                  group relative px-8 py-4 cursor-pointer
-                  bg-gradient-to-r from-cyan-500 to-blue-600
-                  rounded-lg font-bold text-white overflow-hidden
-                  transition-all hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/50
-                "
-                    onClick={() => router.push('/courtroom')}
-                  >
-                    <div
-                      className="absolute inset-0 bg-gradient-to-r from-cyan-400
-                  to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    />
-                    <span className="relative flex items-center gap-2">
-                      Launch Trial Simulation
-                      <ChevronRight
-                        className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                {hydrated ? (
+                  isConnected ? (
+                    <button
+                      className="
+                    group relative px-8 py-4 cursor-pointer
+                    bg-gradient-to-r from-cyan-500 to-blue-600
+                    rounded-lg font-bold text-white overflow-hidden
+                    transition-all hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/50
+                  "
+                      onClick={() => router.push('/courtroom')}
+                    >
+                      <div
+                        className="absolute inset-0 bg-gradient-to-r from-cyan-400
+                    to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       />
-                    </span>
-                  </button>
+                      <span className="relative flex items-center gap-2">
+                        Launch Trial Simulation
+                        <ChevronRight
+                          className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                        />
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      className="
+                      group px-8 py-4 bg-slate-800/50 backdrop-blur-sm
+                      border-2 border-purple-500/50 rounded-lg font-bold text-purple-300
+                      hover:bg-slate-800 hover:border-purple-400
+                      transition-all hover:scale-105
+                    "
+                      onClick={() => router.push('/courtroom')}
+                    >
+                      Connect Wallet
+                    </button>
+                  )
                 ) : (
+                  // Server-rendered fallback that matches the initial client state
                   <button
                     className="
                     group px-8 py-4 bg-slate-800/50 backdrop-blur-sm

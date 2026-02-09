@@ -149,7 +149,7 @@ const OnboardingOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
             Welcome to RumbleCourt!
           </h2>
           <p className="text-slate-400">
-            Your AI-powered blockchain courtroom
+            Your AI-powered blockchain courtroom (Demo Version)
           </p>
         </div>
 
@@ -180,7 +180,7 @@ const OnboardingOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
             </div>
             <div>
               <h3 className="text-white font-semibold mb-1">Get Verdict</h3>
-              <p className="text-sm text-slate-400">AI judge delivers verdict stored permanently on blockchain</p>
+              <p className="text-sm text-slate-400">AI judge delivers verdict (simulated for this demo)</p>
             </div>
           </div>
         </div>
@@ -188,15 +188,11 @@ const OnboardingOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
         <div className="flex gap-3">
           <button
             onClick={onDismiss}
-            className="flex-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 text-white py-3 px-6 rounded-lg font-bold hover:from-cyan-400 hover:via-purple-400 hover:to-pink-400 transition-all transform hover:scale-105"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg font-bold text-white hover:scale-105 transition-transform"
           >
-            Get Started
+            Let's Get Started!
           </button>
         </div>
-
-        <p className="text-xs text-center text-slate-500">
-          💡 Tip: Use "Quick Actions" button for common tasks
-        </p>
       </div>
     </div>
   );
@@ -204,7 +200,7 @@ const OnboardingOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
 
 // Main content with improved layout
 const CourtroomContent = () => {
-  const { cases, currentCase, setCurrentCase } = useCourtroom();
+  const { cases, currentCase, setCurrentCase, refreshCases } = useCourtroom();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -287,8 +283,8 @@ const CourtroomContent = () => {
                         setSidebarCollapsed(false);
                       }}
                       className={`w-8 h-8 rounded-lg border-2 transition-all ${currentCase?.caseId === case_.caseId
-                          ? 'border-cyan-500 bg-cyan-500/20'
-                          : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                        ? 'border-cyan-500 bg-cyan-500/20'
+                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
                         }`}
                       title={case_.caseTitle}
                     >
@@ -311,6 +307,7 @@ const CourtroomContent = () => {
                   cases={cases}
                   currentCase={currentCase}
                   onSelectCase={setCurrentCase}
+                  onRefresh={refreshCases}
                 />
               </div>
             )}
@@ -322,9 +319,9 @@ const CourtroomContent = () => {
       {!theaterMode && (
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 mt-3 text-xs text-slate-500 border-t border-slate-800/50">
           <div className="flex items-center gap-4">
-            <span>🏛️ Blockchain Court</span>
+            <span>🏛️ Blockchain Court (Demo)</span>
             <span>🤖 AI Agents</span>
-            <span>⚖️ On-Chain Verdicts</span>
+            <span>⚖️ Simulated Verdicts</span>
           </div>
           <button
             onClick={() => setShowOnboarding(true)}

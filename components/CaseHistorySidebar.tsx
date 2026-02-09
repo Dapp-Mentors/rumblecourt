@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { FolderOpen, FileText, Calendar, Clock, CheckCircle2, XCircle, MinusCircle, Loader2 } from 'lucide-react';
-import { Case, CaseStatus } from './types';
+import { CaseWithVerdict, CaseStatus } from '../components/types';
 
 interface CaseHistorySidebarProps {
-  cases: Case[];
-  currentCase: Case | null;
+  cases: CaseWithVerdict[];
+  currentCase: CaseWithVerdict | null;
   onSelectCase: (caseId: string) => void;
-  onRefresh?: () => void; // Add refresh callback
+  onRefresh?: () => void;
 }
 
 const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
@@ -16,18 +16,18 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
   onRefresh
 }) => {
 
-  // Auto-refresh every 5 seconds to catch blockchain updates
+  // Auto-refresh every 5 seconds to catch updates
   useEffect(() => {
     if (onRefresh) {
       const interval = setInterval(() => {
         onRefresh();
-      }, 5000); // Refresh every 5 seconds
+      }, 5000);
 
       return () => clearInterval(interval);
     }
   }, [onRefresh]);
 
-  const getStatusIcon = (status: Case['status']) => {
+  const getStatusIcon = (status: CaseStatus) => {
     switch (status) {
       case 'PENDING':
         return <MinusCircle className="w-3 h-3 text-slate-400" />;
@@ -42,7 +42,7 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
     }
   };
 
-  const getStatusColor = (status: Case['status']) => {
+  const getStatusColor = (status: CaseStatus) => {
     switch (status) {
       case 'PENDING':
         return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
@@ -57,7 +57,7 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
     }
   };
 
-  const getStatusLabel = (status: Case['status']) => {
+  const getStatusLabel = (status: CaseStatus) => {
     switch (status) {
       case 'PENDING':
         return 'PENDING';
@@ -68,14 +68,12 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
       case 'APPEALED':
         return 'APPEALED';
       default:
-        console.warn('Unknown status value:', status, 'Type:', typeof status);
         return 'UNKNOWN';
     }
   };
 
   // Sort cases: COMPLETED first, then by most recent
   const sortedCases = [...cases].sort((a, b) => {
-    // Priority: COMPLETED > IN_TRIAL > PENDING > APPEALED
     const statusPriority: Record<CaseStatus, number> = {
       'COMPLETED': 0,
       'IN_TRIAL': 1,
@@ -86,7 +84,6 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
     const priorityA = statusPriority[a.status] ?? 999;
     const priorityB = statusPriority[b.status] ?? 999;
 
-    // If same status, sort by most recent first
     if (priorityA === priorityB) {
       return Number(b.filedAt - a.filedAt);
     }
@@ -132,11 +129,6 @@ const CaseHistorySidebar: React.FC<CaseHistorySidebarProps> = ({
           </div>
         ) : (
           sortedCases.map((case_) => {
-            // Debug log for first case
-            if (sortedCases.indexOf(case_) === 0) {
-              console.log('First case status:', case_.status, 'Type:', typeof case_.status);
-            }
-
             return (
               <button
                 key={case_.caseId.toString()}
