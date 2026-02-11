@@ -1,5 +1,4 @@
 // lib/llm-agents.ts
-// Enhanced with Opik tracing for LLM interaction logging
 
 export interface AgentProfile {
   role: 'prosecution' | 'defense' | 'judge'
@@ -292,22 +291,12 @@ export const simulateAgentResponse = async (
 }
 
 /**
- * Enhanced LLM call with integrated Opik logging
- * Logs are sent asynchronously without blocking the response
+ * LLM call for agent responses
  */
 export const callLLMAgent = async (
   agent: 'prosecution' | 'defense' | 'judge',
   prompt: string,
   systemPrompt?: string,
-  tracer?: {
-    logLLMInteraction: (
-      agent: 'prosecution' | 'defense' | 'judge',
-      phase: string,
-      prompt: string,
-      response: string,
-      metadata?: Record<string, unknown>,
-    ) => void
-  },
   phase?: string,
 ): Promise<string> => {
   const apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
@@ -316,20 +305,12 @@ export const callLLMAgent = async (
     console.warn(
       '[LLM] ⚠️  OpenRouter API key not configured, using simulation',
     )
-    const response = await simulateAgentResponse(agent)
-
-    // Log simulated response too
-    if (tracer && phase) {
-      tracer.logLLMInteraction(agent, phase, prompt, response, {
-        simulated: true,
-        model: 'simulation',
-      })
-    }
-
-    return response
+    return await simulateAgentResponse(agent)
   }
 
-  const startTime = Date.now()
+  console.log(
+    `[LLM] 🎯 Calling LLM for ${agent} during ${phase || 'unknown phase'}`,
+  )
 
   try {
     const response = await fetch(
@@ -344,7 +325,9 @@ export const callLLMAgent = async (
           'X-Title': 'RumbleCourt AI',
         },
         body: JSON.stringify({
-          model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
+          model:
+            process.env.NEXT_PUBLIC_LLM_MODEL ||
+            'arcee-ai/trinity-large-preview:free',
           messages: [
             {
               role: 'system',
@@ -367,36 +350,10 @@ export const callLLMAgent = async (
       throw new Error(data.error?.message || 'API error')
     }
 
-    const llmResponse =
-      data.choices[0].message.content?.trim() || 'No response.'
-    const endTime = Date.now()
-
-    // Log the interaction asynchronously (fire-and-forget)
-    if (tracer && phase) {
-      tracer.logLLMInteraction(agent, phase, prompt, llmResponse, {
-        model: process.env.NEXT_PUBLIC_LLM_MODEL || 'arcee-ai/trinity-large-preview:free',
-        temperature: agent === 'judge' ? 0.3 : 0.7,
-        max_tokens: 400,
-        latency_ms: endTime - startTime,
-        success: true,
-      })
-    }
-
-    return llmResponse
+    return data.choices[0].message.content?.trim() || 'No response.'
   } catch (error) {
     console.error('[LLM] ❌ LLM call failed:', error)
-    const fallbackResponse = await simulateAgentResponse(agent)
-
-    // Log the error and fallback
-    if (tracer && phase) {
-      tracer.logLLMInteraction(agent, phase, prompt, fallbackResponse, {
-        error: (error as Error).message,
-        fallback: true,
-        model: 'simulation',
-      })
-    }
-
-    return fallbackResponse
+    return await simulateAgentResponse(agent)
   }
 }
 

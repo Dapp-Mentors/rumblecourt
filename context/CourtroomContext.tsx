@@ -3,7 +3,6 @@ import { useWallet } from './WalletContext';
 import { rumbleCourtMcpTools, setWalletContext } from '../lib/courtroom-mcp-tools';
 // import { config } from '../lib/wagmi';
 import { getOwner } from '../services/blockchain';
-import { CourtroomTracerClient, createCourtroomTracer } from '@/lib/opik-client'
 import { callLLMAgent, generateAgentPrompt, AGENT_PROFILES, DEBATE_STRUCTURE } from '@/lib/llm-agents'
 // Simplified types for the new minimal contract
 import { CaseStatus } from '../components/types';
@@ -165,7 +164,6 @@ Let's begin your blockchain legal journey!`,
       timestampString: new Date().toLocaleTimeString()
     }
   ]);
-  const [opikTracer, setOpikTracer] = useState<CourtroomTracerClient | null>(null);
   const [isProcessing, setIsProcessingState] = useState(false);
   const [selectedTool, setSelectedToolState] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -196,45 +194,6 @@ Let's begin your blockchain legal journey!`,
       return prev;
     });
   };
-
-  // Initialize tracer when component mounts OR when currentCase changes
-  useEffect(() => {
-    // Create a general tracer for chat if no case is selected
-    if (!currentCase && !opikTracer) {
-      const generalTracer = createCourtroomTracer(
-        'general-chat',
-        'General Chat Session',
-        'no-case-selected',
-        true // Enable debug mode
-      );
-      generalTracer.startTrace();
-      setOpikTracer(generalTracer);
-
-      console.log('[CourtroomContext] 📊 Opik tracer initialized for general chat');
-      return;
-    }
-
-    // Create case-specific tracer when case is selected
-    if (currentCase) {
-      // Cleanup old tracer if exists
-      if (opikTracer) {
-        console.log('[CourtroomContext] 🧹 Cleaning up old tracer');
-        opikTracer.cleanup();
-      }
-
-      const caseTracer = createCourtroomTracer(
-        currentCase.caseId.toString(),
-        currentCase.caseTitle,
-        currentCase.evidenceHash,
-        true // Enable debug mode
-      );
-      caseTracer.startTrace();
-      setOpikTracer(caseTracer);
-
-      console.log('[CourtroomContext] 📊 Opik tracer initialized for case:', currentCase.caseId.toString());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentCase]); // Only depend on currentCase, not opikTracer
 
   // ============================================
   const extractVerdictFromResponse = (judgeResponse: string): {
@@ -272,17 +231,6 @@ Let's begin your blockchain legal journey!`,
     setIsSimulatingState(true);
     isSimulationAbortedRef.current = false; // Reset abort flag when simulation starts
     const debateHistory: Array<{ agent: string, message: string }> = [];
-
-    // Initialize Opik tracer
-    const caseId = currentCase?.caseId.toString() || `case-${Date.now()}`;
-    const tracer = createCourtroomTracer(
-      caseId,
-      caseTitle,
-      evidenceHash,
-      true
-    );
-
-    tracer.startTrace();
 
     // --- Validation Checks ---
     if (cases.length === 0) {
@@ -338,7 +286,6 @@ Let's begin your blockchain legal journey!`,
         // Check if simulation has been aborted before each step
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
 
@@ -383,7 +330,6 @@ Let's begin your blockchain legal journey!`,
         // Check abort flag again before calling LLM (in case it was set during the prompt generation)
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted before LLM call');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
 
@@ -392,14 +338,12 @@ Let's begin your blockchain legal journey!`,
           agent,
           prompt,
           agentProfile.systemPrompt,
-          tracer,
           turn.messageType
         );
 
         // Check abort flag immediately after LLM call
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted after LLM call');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
 
@@ -408,7 +352,6 @@ Let's begin your blockchain legal journey!`,
         // Check abort flag before adding message to state
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted before adding message');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
 
@@ -429,7 +372,6 @@ Let's begin your blockchain legal journey!`,
         // Check abort flag before delay
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted before delay');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
 
@@ -451,7 +393,6 @@ Let's begin your blockchain legal journey!`,
         // Check abort flag after delay
         if (isSimulationAbortedRef.current) {
           console.log('[Simulation] 🔴 Simulation aborted after delay');
-          tracer.endTrace({ status: 'aborted', debateTurns: i });
           return;
         }
       }
@@ -459,7 +400,6 @@ Let's begin your blockchain legal journey!`,
       // Check if simulation was aborted during the last turn
       if (isSimulationAbortedRef.current) {
         console.log('[Simulation] 🔴 Simulation aborted');
-        tracer.endTrace({ status: 'aborted', debateTurns: DEBATE_STRUCTURE.length });
         return;
       }
 
@@ -492,8 +432,6 @@ Let's begin your blockchain legal journey!`,
               timestamp: new Date(),
               timestampString: new Date().toLocaleTimeString()
             });
-
-            tracer.recordVerdict(finalVerdict.verdict, finalVerdict.reasoning, 1.0);
           }
         } catch (verdictError) {
           console.error('[Simulation] Verdict Error:', verdictError);
@@ -509,13 +447,6 @@ Let's begin your blockchain legal journey!`,
         });
       }
 
-      tracer.endTrace({
-        status: 'completed',
-        verdict: finalVerdict?.verdict || 'UNKNOWN',
-        debateTurns: debateHistory.length,
-        caseId: currentCase.caseId.toString()
-      });
-
       // Reload cases
       if (isConnected && address) {
         setTimeout(async () => {
@@ -526,7 +457,6 @@ Let's begin your blockchain legal journey!`,
     } catch (error) {
       console.error('[Simulation] Fatal error:', error);
       addMessage({ id: `trial-${Date.now()}-fatal`, role: 'system', content: `❌ SIMULATION FAILED: ${String(error)}`, timestamp: new Date(), timestampString: new Date().toLocaleTimeString() });
-      tracer.endTrace({ status: 'error', error: String(error) });
     } finally {
       setIsSimulatingState(false);
       setSimulationProgress('');
@@ -1212,7 +1142,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
 
       while (iterations < MAX_ITERATIONS) {
         iterations++;
-        const startTime = Date.now();
 
         const activeApiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 
@@ -1288,8 +1217,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
         }
 
         const message = choice.message;
-        const endTime = Date.now();
-        const latency = endTime - startTime;
 
         // Log what the AI is doing for debugging
         console.log('[AI Response]', {
@@ -1299,7 +1226,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
           toolCount: message.tool_calls?.length || 0,
           toolNames: message.tool_calls?.map(tc => tc.function.name) || [],
           finishReason: choice.finish_reason,
-          latency_ms: latency
         });
 
         if (message.tool_calls && message.tool_calls.length > 0) {
@@ -1307,22 +1233,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
             name: tc.function.name,
             args: tc.function.arguments
           })));
-        }
-
-        if (opikTracer && message.content) {
-          opikTracer.logLLMInteraction(
-            'judge',
-            'chat_interaction',
-            userInput,
-            message.content,
-            {
-              model: process.env.NEXT_PUBLIC_LLM_MODEL || "arcee-ai/trinity-large-preview:free",
-              iteration: iterations,
-              latency_ms: latency,
-              had_tool_calls: !!(message.tool_calls && message.tool_calls.length > 0),
-              tool_count: message.tool_calls?.length || 0
-            }
-          );
         }
 
         conversationMessages.push({
@@ -1356,20 +1266,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
       return fullResponse.trim();
     } catch (error) {
       console.error('Error with OpenRouter API:', error);
-
-      if (opikTracer) {
-        opikTracer.logLLMInteraction(
-          'judge',
-          'chat_interaction_error',
-          userInput,
-          `Error: ${(error as Error).message}`,
-          {
-            error: true,
-            error_message: (error as Error).message
-          }
-        );
-      }
-
       return `Sorry, something went wrong with the AI service: ${(error as Error).message}`;
     }
   };
@@ -1377,7 +1273,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
   const handleToolCall = async (toolCall: ToolCall, conversationMessages: OpenAIMessage[]): Promise<string> => {
     const toolName = toolCall.function.name;
     const toolArgs = JSON.parse(toolCall.function.arguments || '{}') as Record<string, unknown>;
-    const toolStartTime = Date.now();
 
     console.log(`[Tool Call] 🔧 Executing: ${toolName}`, JSON.parse(JSON.stringify(toolArgs, bigIntReplacer)));
 
@@ -1388,7 +1283,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
     }
 
     let toolOutput: unknown;
-    let toolError: Error | null = null;
 
     try {
       const tool = courtroomTools[toolName as keyof typeof courtroomTools];
@@ -1437,31 +1331,7 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
       }
     } catch (error) {
       console.error(`[Tool Call] ❌ Error in ${toolName}:`, error);
-      toolError = error as Error;
       toolOutput = { error: (error as Error).message };
-    }
-
-    const toolEndTime = Date.now();
-    const toolLatency = toolEndTime - toolStartTime;
-
-    if (opikTracer) {
-      const toolOutputStr = typeof toolOutput === 'string'
-        ? toolOutput
-        : JSON.stringify(toolOutput, bigIntReplacer);
-
-      opikTracer.logLLMInteraction(
-        'judge',
-        `tool_${toolName}`,
-        JSON.stringify(toolArgs, bigIntReplacer),
-        toolOutputStr,
-        {
-          tool_name: toolName,
-          latency_ms: toolLatency,
-          success: !toolError,
-          error: toolError?.message,
-          has_output: !!toolOutput
-        }
-      );
     }
 
     const formattedOutput = formatToolResponse(toolName, toolArgs, toolOutput);
@@ -1478,15 +1348,6 @@ REMEMBER: Tools first, talk later. Be a DOER, not a questioner.`;
 
     return formattedOutput;
   };
-
-  useEffect(() => {
-    return () => {
-      if (opikTracer) {
-        console.log('[CourtroomContext] 🧹 Cleaning up Opik tracer');
-        opikTracer.cleanup();
-      }
-    };
-  }, [opikTracer]);
 
   const value: CourtroomContextType = {
     cases,
